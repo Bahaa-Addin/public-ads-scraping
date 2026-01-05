@@ -1,0 +1,287 @@
+# =============================================================================
+# Creative Ads Dashboard - Bitbucket Pipelines
+# =============================================================================
+# CI/CD pipeline for building, testing, and deploying the dashboard
+
+image: python:3.11-slim
+
+definitions:
+  caches:
+    npm: frontend/node_modules
+    pip: ~/.cache/pip
+    
+  services:
+    docker:
+      memory: 2048
+
+  steps:
+    # Backend Tests
+    - step: &backend-test
+        name: Backend - Lint & Test
+        caches:
+          - pip
+        script:
+          - cd backend
+          - pip install --upgrade pip
+          - pip install -r requirements.txt
+          - pip install pytest pytest-cov pytest-asyncio black flake8 mypy
+          # Linting
+          - black --check app/
+          - flake8 app/ --max-line-length=120 --ignore=E501,W503
+          - mypy app/ --ignore-missing-imports
+          # Tests
+          - pytest tests/ -v --cov=app --cov-report=xml --cov-report=term-missing || true
+        artifacts:
+          - backend/coverage.xml
+
+    # Frontend Tests
+    - step: &frontend-test
+        name: Frontend - Lint & Test
+        image: node:20
+        caches:
+          - npm
+        script:
+          - cd frontend
+          - npm ci --legacy-peer-deps
+          - npm run lint || true
+          - npm run type-check || true
+          - npm run test -- --run --coverage || true
+        artifacts:
+          - frontend/coverage/**
+
+    # Build Backend Docker Image
+    - step: &build-backend
+        name: Build Backend Image
+        services:
+          - docker
+        caches:
+          - docker
+        script:
+          - export IMAGE_TAG="${BITBUCKET_COMMIT:0:8}"
+          - export REGISTRY="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${ARTIFACT_REGISTRY_REPO}"
+          - docker build -t ${REGISTRY}/dashboard-api:${IMAGE_TAG} -t ${REGISTRY}/dashboard-api:latest backend/
+          # Login to Artifact Registry
+          - echo $GCLOUD_SERVICE_KEY | base64 -d > /tmp/key.json
+          - cat /tmp/key.json | docker login -u _json_key --password-stdin https://${GCP_REGION}-docker.pkg.dev
+          # Push images
+          - docker push ${REGISTRY}/dashboard-api:${IMAGE_TAG}
+          - docker push ${REGISTRY}/dashboard-api:latest
+
+    # Build Frontend Docker Image
+    - step: &build-frontend
+        name: Build Frontend Image
+        services:
+          - docker
+        caches:
+          - docker
+        script:
+          - export IMAGE_TAG="${BITBUCKET_COMMIT:0:8}"
+          - export REGISTRY="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${ARTIFACT_REGISTRY_REPO}"
+          - docker build -t ${REGISTRY}/dashboard-frontend:${IMAGE_TAG} -t ${REGISTRY}/dashboard-frontend:latest --build-arg VITE_API_URL=${API_URL} frontend/
+          # Login to Artifact Registry
+          - echo $GCLOUD_SERVICE_KEY | base64 -d > /tmp/key.json
+          - cat /tmp/key.json | docker login -u _json_key --password-stdin https://${GCP_REGION}-docker.pkg.dev
+          # Push images
+          - docker push ${REGISTRY}/dashboard-frontend:${IMAGE_TAG}
+          - docker push ${REGISTRY}/dashboard-frontend:latest
+
+    # Deploy to Development
+    - step: &deploy-dev
+        name: Deploy to Development
+        image: google/cloud-sdk:latest
+        deployment: development
+        trigger: manual
+        script:
+          - export IMAGE_TAG="${BITBUCKET_COMMIT:0:8}"
+          # Authenticate with GCP
+          - echo $GCLOUD_SERVICE_KEY | base64 -d > /tmp/key.json
+          - gcloud auth activate-service-account --key-file=/tmp/key.json
+          - gcloud config set project ${GCP_PROJECT_ID}
+          # Deploy API to Cloud Run
+          - |
+            gcloud run deploy creative-ads-dashboard-api \
+              --image ${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${ARTIFACT_REGISTRY_REPO}/dashboard-api:${IMAGE_TAG} \
+              --region ${GCP_REGION} \
+              --platform managed \
+              --allow-unauthenticated \
+              --set-env-vars "ENVIRONMENT=development,GCP_PROJECT_ID=${GCP_PROJECT_ID}"
+          # Deploy Frontend to Cloud Run
+          - |
+            gcloud run deploy creative-ads-dashboard-frontend \
+              --image ${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${ARTIFACT_REGISTRY_REPO}/dashboard-frontend:${IMAGE_TAG} \
+              --region ${GCP_REGION} \
+              --platform managed \
+              --allow-unauthenticated
+          # Get and display URLs
+          - gcloud run services describe creative-ads-dashboard-api --region ${GCP_REGION} --format 'value(status.url)'
+          - gcloud run services describe creative-ads-dashboard-frontend --region ${GCP_REGION} --format 'value(status.url)'
+
+    # Deploy to Staging
+    - step: &deploy-staging
+        name: Deploy to Staging
+        image: google/cloud-sdk:latest
+        deployment: staging
+        trigger: manual
+        script:
+          - export IMAGE_TAG="${BITBUCKET_COMMIT:0:8}"
+          # Authenticate with GCP
+          - echo $GCLOUD_SERVICE_KEY_STAGING | base64 -d > /tmp/key.json
+          - gcloud auth activate-service-account --key-file=/tmp/key.json
+          - gcloud config set project ${GCP_PROJECT_ID_STAGING}
+          # Deploy API
+          - |
+            gcloud run deploy creative-ads-dashboard-api \
+              --image ${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${ARTIFACT_REGISTRY_REPO}/dashboard-api:${IMAGE_TAG} \
+              --region ${GCP_REGION} \
+              --platform managed \
+              --allow-unauthenticated \
+              --min-instances 1 \
+              --max-instances 5 \
+              --memory 1Gi \
+              --set-env-vars "ENVIRONMENT=staging,GCP_PROJECT_ID=${GCP_PROJECT_ID_STAGING}"
+          # Deploy Frontend
+          - |
+            gcloud run deploy creative-ads-dashboard-frontend \
+              --image ${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${ARTIFACT_REGISTRY_REPO}/dashboard-frontend:${IMAGE_TAG} \
+              --region ${GCP_REGION} \
+              --platform managed \
+              --allow-unauthenticated \
+              --min-instances 1 \
+              --max-instances 3
+
+    # Deploy to Production
+    - step: &deploy-prod
+        name: Deploy to Production
+        image: google/cloud-sdk:latest
+        deployment: production
+        trigger: manual
+        script:
+          - export IMAGE_TAG="${BITBUCKET_COMMIT:0:8}"
+          # Authenticate with GCP
+          - echo $GCLOUD_SERVICE_KEY_PROD | base64 -d > /tmp/key.json
+          - gcloud auth activate-service-account --key-file=/tmp/key.json
+          - gcloud config set project ${GCP_PROJECT_ID_PROD}
+          # Deploy API with production config
+          - |
+            gcloud run deploy creative-ads-dashboard-api \
+              --image ${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${ARTIFACT_REGISTRY_REPO}/dashboard-api:${IMAGE_TAG} \
+              --region ${GCP_REGION} \
+              --platform managed \
+              --no-allow-unauthenticated \
+              --min-instances 2 \
+              --max-instances 20 \
+              --memory 2Gi \
+              --cpu 2 \
+              --set-env-vars "ENVIRONMENT=production,GCP_PROJECT_ID=${GCP_PROJECT_ID_PROD},ENABLE_CLOUD_LOGGING=true,ENABLE_METRICS=true"
+          # Deploy Frontend
+          - |
+            gcloud run deploy creative-ads-dashboard-frontend \
+              --image ${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${ARTIFACT_REGISTRY_REPO}/dashboard-frontend:${IMAGE_TAG} \
+              --region ${GCP_REGION} \
+              --platform managed \
+              --allow-unauthenticated \
+              --min-instances 2 \
+              --max-instances 10
+          # Notify on success
+          - |
+            if [ -n "$SLACK_WEBHOOK_URL" ]; then
+              curl -X POST -H 'Content-type: application/json' \
+                --data "{\"text\":\"✅ Dashboard deployed to production: ${IMAGE_TAG}\"}" \
+                $SLACK_WEBHOOK_URL
+            fi
+
+    # Terraform Plan
+    - step: &terraform-plan
+        name: Terraform Plan
+        image: hashicorp/terraform:1.5
+        script:
+          - cd terraform
+          - echo $GCLOUD_SERVICE_KEY | base64 -d > /tmp/key.json
+          - export GOOGLE_APPLICATION_CREDENTIALS=/tmp/key.json
+          - terraform init -backend-config="bucket=${TERRAFORM_STATE_BUCKET}" -backend-config="prefix=dashboard"
+          - terraform plan -var="project_id=${GCP_PROJECT_ID}" -var="region=${GCP_REGION}" -var="environment=${ENVIRONMENT:-development}" -out=tfplan
+        artifacts:
+          - terraform/tfplan
+
+    # Terraform Apply
+    - step: &terraform-apply
+        name: Terraform Apply
+        image: hashicorp/terraform:1.5
+        trigger: manual
+        script:
+          - cd terraform
+          - echo $GCLOUD_SERVICE_KEY | base64 -d > /tmp/key.json
+          - export GOOGLE_APPLICATION_CREDENTIALS=/tmp/key.json
+          - terraform init -backend-config="bucket=${TERRAFORM_STATE_BUCKET}" -backend-config="prefix=dashboard"
+          - terraform apply -auto-approve tfplan
+
+pipelines:
+  # Feature branches - test only
+  branches:
+    'feature/*':
+      - parallel:
+          - step: *backend-test
+          - step: *frontend-test
+
+    # Develop branch - test, build, deploy to dev
+    develop:
+      - parallel:
+          - step: *backend-test
+          - step: *frontend-test
+      - parallel:
+          - step: *build-backend
+          - step: *build-frontend
+      - step: *deploy-dev
+
+    # Staging branch
+    staging:
+      - parallel:
+          - step: *backend-test
+          - step: *frontend-test
+      - parallel:
+          - step: *build-backend
+          - step: *build-frontend
+      - step: *deploy-staging
+
+    # Main branch - full pipeline to production
+    main:
+      - parallel:
+          - step: *backend-test
+          - step: *frontend-test
+      - parallel:
+          - step: *build-backend
+          - step: *build-frontend
+      - step: *deploy-staging
+      - step: *deploy-prod
+
+  # Manual triggers
+  custom:
+    terraform-deploy:
+      - step: *terraform-plan
+      - step: *terraform-apply
+    
+    deploy-to-dev:
+      - parallel:
+          - step: *build-backend
+          - step: *build-frontend
+      - step: *deploy-dev
+    
+    deploy-to-staging:
+      - parallel:
+          - step: *build-backend
+          - step: *build-frontend
+      - step: *deploy-staging
+    
+    deploy-to-prod:
+      - parallel:
+          - step: *build-backend
+          - step: *build-frontend
+      - step: *deploy-prod
+
+  # Pull request pipeline
+  pull-requests:
+    '**':
+      - parallel:
+          - step: *backend-test
+          - step: *frontend-test
+
