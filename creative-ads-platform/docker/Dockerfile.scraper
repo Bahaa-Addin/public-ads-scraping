@@ -1,0 +1,56 @@
+# Dockerfile for Creative Ads Scraper (Node.js + Playwright)
+#
+# Optimized for browser automation with Playwright
+
+# =============================================================================
+# Build Stage
+# =============================================================================
+FROM node:20-slim as builder
+
+WORKDIR /build
+
+# Copy package files
+COPY scrapers/package*.json ./
+
+# Install dependencies
+RUN npm ci --only=production
+
+# =============================================================================
+# Production Stage
+# =============================================================================
+FROM mcr.microsoft.com/playwright:v1.40.0-jammy as production
+
+WORKDIR /app
+
+# Install Node.js (Playwright image has its own)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy node_modules from builder
+COPY --from=builder /build/node_modules ./node_modules
+
+# Copy application code
+COPY scrapers/ ./
+
+# Create logs directory
+RUN mkdir -p logs && chown -R pwuser:pwuser /app
+
+# Switch to non-root user (provided by Playwright image)
+USER pwuser
+
+# Environment variables
+ENV NODE_ENV=production \
+    PORT=8080 \
+    HEADLESS=true
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD curl -f http://localhost:${PORT}/health || exit 1
+
+# Expose port
+EXPOSE 8080
+
+# Start the scraper server
+CMD ["node", "server.js"]
+

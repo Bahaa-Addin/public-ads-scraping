@@ -1,0 +1,77 @@
+# Dockerfile for Creative Ads Agent (Python)
+#
+# Multi-stage build for optimized production image
+
+# =============================================================================
+# Build Stage
+# =============================================================================
+FROM python:3.11-slim as builder
+
+WORKDIR /build
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create virtual environment
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Install Python dependencies
+COPY agent/requirements.txt agent/
+COPY feature_extraction/requirements.txt feature_extraction/
+COPY reverse_prompt/requirements.txt reverse_prompt/
+COPY firestore/requirements.txt firestore/
+
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r agent/requirements.txt && \
+    pip install --no-cache-dir -r feature_extraction/requirements.txt && \
+    pip install --no-cache-dir -r reverse_prompt/requirements.txt && \
+    pip install --no-cache-dir -r firestore/requirements.txt
+
+# =============================================================================
+# Production Stage
+# =============================================================================
+FROM python:3.11-slim as production
+
+WORKDIR /app
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy virtual environment from builder
+COPY --from=builder /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Copy application code
+COPY agent/ ./agent/
+COPY feature_extraction/ ./feature_extraction/
+COPY reverse_prompt/ ./reverse_prompt/
+COPY firestore/ ./firestore/
+COPY main.py ./
+
+# Create non-root user
+RUN useradd -m -u 1000 appuser && \
+    chown -R appuser:appuser /app
+USER appuser
+
+# Environment variables
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PORT=8080
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:${PORT}/health || exit 1
+
+# Expose port
+EXPOSE 8080
+
+# Run the application
+CMD ["python", "-m", "uvicorn", "agent.api:app", "--host", "0.0.0.0", "--port", "8080"]
+
