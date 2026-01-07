@@ -15,23 +15,23 @@ import {
   Menu,
   X,
   Home,
-  Zap,
+  FlaskConical,
 } from 'lucide-react'
 import { useState } from 'react'
 import { getHealth } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
 const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Jobs', href: '/jobs', icon: ListTodo },
-  { name: 'Assets', href: '/assets', icon: Image },
-  { name: 'Scrapers', href: '/scrapers', icon: Radar },
-  { name: 'Analytics', href: '/analytics', icon: BarChart3 },
-  { name: 'Logs', href: '/logs', icon: FileText },
-  { name: 'Settings', href: '/settings', icon: Settings },
+  { name: 'Dashboard', href: '/template/dashboard', icon: LayoutDashboard },
+  { name: 'Jobs', href: '/template/jobs', icon: ListTodo },
+  { name: 'Assets', href: '/template/assets', icon: Image },
+  { name: 'Scrapers', href: '/template/scrapers', icon: Radar },
+  { name: 'Analytics', href: '/template/analytics', icon: BarChart3 },
+  { name: 'Logs', href: '/template/logs', icon: FileText },
+  { name: 'Settings', href: '/template/settings', icon: Settings },
 ]
 
-export default function Layout() {
+export default function TemplateLayout() {
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
@@ -71,20 +71,19 @@ export default function Layout() {
           </div>
         </div>
 
-        {/* Live Mode Badge */}
-        <div className="mx-3 mt-4 mb-2 px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-          <div className="flex items-center gap-2 text-emerald-500">
-            <Zap className="w-4 h-4" />
-            <span className="text-xs font-medium">Live Mode</span>
+        {/* Template Badge */}
+        <div className="mx-3 mt-4 mb-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
+          <div className="flex items-center gap-2 text-amber-500">
+            <FlaskConical className="w-4 h-4" />
+            <span className="text-xs font-medium">Template Mode</span>
           </div>
-          <p className="text-xs text-emerald-500/70 mt-1">Connected to real data</p>
+          <p className="text-xs text-amber-500/70 mt-1">Using mock data</p>
         </div>
 
         {/* Navigation */}
         <nav className="px-3 py-4 space-y-1">
           {navigation.map((item) => {
-            const isActive = location.pathname === item.href || 
-              (item.href !== '/dashboard' && location.pathname.startsWith(item.href))
+            const isActive = location.pathname.startsWith(item.href)
             return (
               <NavLink
                 key={item.name}
@@ -155,10 +154,10 @@ export default function Layout() {
           {/* Page title */}
           <div className="hidden lg:flex items-center gap-3">
             <h2 className="text-lg font-semibold text-white capitalize">
-              {location.pathname.split('/')[1] || 'Dashboard'}
+              {location.pathname.split('/').pop() || 'Dashboard'}
             </h2>
-            <span className="px-2 py-0.5 rounded text-xs font-medium bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-              Live
+            <span className="px-2 py-0.5 rounded text-xs font-medium bg-amber-500/10 text-amber-500 border border-amber-500/20">
+              Mock Data
             </span>
           </div>
 
@@ -198,3 +197,4 @@ export default function Layout() {
     </div>
   )
 }
+

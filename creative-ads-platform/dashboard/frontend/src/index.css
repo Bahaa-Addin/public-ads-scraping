@@ -151,6 +151,11 @@
     @apply bg-gradient-to-r from-brand-400 to-cyan-400 bg-clip-text text-transparent;
   }
 
+  /* Radial gradient */
+  .bg-gradient-radial {
+    background: radial-gradient(circle, var(--tw-gradient-stops));
+  }
+
   /* Glass effect */
   .glass {
     @apply bg-white/5 backdrop-blur-xl border border-white/10;

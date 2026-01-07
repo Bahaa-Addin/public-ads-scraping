@@ -20,13 +20,12 @@ from pydantic import BaseModel, Field
 
 from .agent_brain import AgentBrain, ScrapingTask, PipelineStage
 from .config import Config, ScraperSource, IndustryCategory
-from .job_queue import JobQueue
+from .orchestrator import Orchestrator
 
 logger = logging.getLogger(__name__)
 
 # Global instances
-agent: Optional[AgentBrain] = None
-job_queue: Optional[JobQueue] = None
+orchestrator: Optional[Orchestrator] = None
 
 
 # =============================================================================
@@ -95,38 +94,25 @@ start_time = datetime.utcnow()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage application lifecycle."""
-    global agent, job_queue
+    global orchestrator
     
     logger.info("Starting Agent API...")
     
     # Initialize configuration
     config = Config.from_environment()
     
-    # Initialize job queue
-    job_queue = JobQueue(
-        project_id=config.gcp_project_id,
-        topic_name=config.pubsub_topic,
-        subscription_name=config.pubsub_subscription,
-        use_local_queue=config.gcp_project_id == ""  # Use local for dev
-    )
-    await job_queue.initialize()
+    # Initialize orchestrator with all adapters
+    orchestrator = Orchestrator(config)
+    await orchestrator.initialize()
     
-    # Initialize agent brain (but don't start workers in API mode)
-    # Workers run in a separate process
-    agent = AgentBrain(
-        config=config,
-        job_queue=job_queue,
-        firestore=None  # Will be initialized when needed
-    )
-    
-    logger.info("Agent API initialized")
+    logger.info(f"Agent API initialized (mode={config.mode.value})")
     
     yield
     
     # Cleanup
     logger.info("Shutting down Agent API...")
-    if job_queue:
-        await job_queue.close()
+    if orchestrator:
+        await orchestrator.shutdown()
 
 
 # =============================================================================
@@ -168,8 +154,8 @@ async def health_check():
 @app.get("/ready", tags=["Health"])
 async def readiness_check():
     """Readiness check endpoint."""
-    if job_queue is None:
-        raise HTTPException(status_code=503, detail="Job queue not initialized")
+    if orchestrator is None:
+        raise HTTPException(status_code=503, detail="Orchestrator not initialized")
     return {"status": "ready"}
 
 
@@ -188,8 +174,10 @@ async def trigger_full_pipeline(
     This endpoint queues scraping jobs for all specified sources
     (or all available sources if none specified).
     """
-    if agent is None:
-        raise HTTPException(status_code=503, detail="Agent not initialized")
+    if orchestrator is None:
+        raise HTTPException(status_code=503, detail="Orchestrator not initialized")
+    
+    agent = orchestrator.get_agent()
     
     # Parse sources
     sources = None
@@ -227,8 +215,8 @@ async def create_scraping_job(request: ScrapingJobRequest):
     """
     Create a single scraping job for a specific source.
     """
-    if job_queue is None:
-        raise HTTPException(status_code=503, detail="Job queue not initialized")
+    if orchestrator is None:
+        raise HTTPException(status_code=503, detail="Orchestrator not initialized")
     
     # Validate source
     try:
@@ -240,7 +228,8 @@ async def create_scraping_job(request: ScrapingJobRequest):
         )
     
     # Create job
-    job_id = await job_queue.create_scrape_job(
+    queue = orchestrator.get_queue()
+    job_id = await queue.create_scrape_job(
         source=request.source,
         query=request.query,
         filters={
@@ -278,9 +267,10 @@ async def list_sources():
 @app.get("/status", response_model=PipelineStatusResponse, tags=["Status"])
 async def get_pipeline_status():
     """Get current pipeline status."""
-    if agent is None:
-        raise HTTPException(status_code=503, detail="Agent not initialized")
+    if orchestrator is None:
+        raise HTTPException(status_code=503, detail="Orchestrator not initialized")
     
+    agent = orchestrator.get_agent()
     status = await agent.get_pipeline_status()
     
     return PipelineStatusResponse(
@@ -295,7 +285,7 @@ async def get_pipeline_status():
 @app.get("/metrics", response_model=MetricsResponse, tags=["Status"])
 async def get_metrics():
     """Get pipeline metrics."""
-    if agent is None:
+    if orchestrator is None:
         return MetricsResponse(
             assets_scraped=0,
             features_extracted=0,
@@ -306,6 +296,7 @@ async def get_metrics():
             by_industry={}
         )
     
+    agent = orchestrator.get_agent()
     status = await agent.get_pipeline_status()
     metrics = status.get("metrics", {})
     
@@ -323,19 +314,21 @@ async def get_metrics():
 @app.get("/queue/size", tags=["Status"])
 async def get_queue_size():
     """Get current job queue size."""
-    if job_queue is None:
+    if orchestrator is None:
         return {"size": 0}
     
-    return {"size": job_queue.get_queue_size()}
+    queue = orchestrator.get_queue()
+    return {"size": queue.get_queue_size()}
 
 
 @app.get("/queue/metrics", tags=["Status"])
 async def get_queue_metrics():
     """Get detailed queue metrics."""
-    if job_queue is None:
+    if orchestrator is None:
         return {}
     
-    metrics = job_queue.get_metrics()
+    queue = orchestrator.get_queue()
+    metrics = queue.get_metrics()
     return {
         "total_jobs": metrics.total_jobs,
         "pending_jobs": metrics.pending_jobs,
@@ -372,20 +365,20 @@ async def list_industries():
 @app.post("/admin/clear-queue", tags=["Admin"])
 async def clear_queue():
     """Clear the job queue (development only)."""
-    if job_queue is None:
-        raise HTTPException(status_code=503, detail="Job queue not initialized")
+    if orchestrator is None:
+        raise HTTPException(status_code=503, detail="Orchestrator not initialized")
     
-    # Only allow in development
-    config = Config.from_environment()
-    if config.gcp_project_id != "":
+    # Only allow in local mode
+    if not orchestrator.config.is_local:
         raise HTTPException(
             status_code=403,
-            detail="Queue clearing not allowed in production"
+            detail="Queue clearing not allowed in cloud mode"
         )
     
     # Clear local queue
-    if hasattr(job_queue, '_local_queue'):
-        job_queue._local_queue.clear()
+    queue = orchestrator.get_queue()
+    if hasattr(queue, '_queue'):
+        queue._queue.clear()
     
     return {"message": "Queue cleared"}
 

@@ -4,6 +4,9 @@ Agent Brain - Core Orchestration Engine
 The Agent Brain is the central orchestrator for the creative ads platform.
 It manages scraping jobs, coordinates feature extraction, triggers reverse-prompting,
 and ensures smooth pipeline execution with proper monitoring and error handling.
+
+IMPORTANT: This module ONLY imports interfaces, never cloud SDKs directly.
+Adapters are injected at runtime by the Orchestrator.
 """
 
 import asyncio
@@ -16,7 +19,14 @@ from dataclasses import dataclass, field
 from enum import Enum
 
 from .config import Config, ScraperSource, IndustryCategory
-from .job_queue import JobQueue, Job, JobType, JobStatus
+from .interfaces import (
+    StorageInterface,
+    QueueInterface,
+    LLMInterface,
+    MonitoringInterface,
+)
+from .interfaces.queue import JobData, JobType, JobStatus
+from .interfaces.monitoring import LogLevel
 
 logger = logging.getLogger(__name__)
 
@@ -64,20 +74,37 @@ class AgentBrain:
     Responsibilities:
     - Dispatch scraping jobs to Node.js Playwright scrapers
     - Coordinate feature extraction pipeline
-    - Trigger reverse-prompt generation via Vertex AI
+    - Trigger reverse-prompt generation
     - Handle retries, throttling, and rate limits
-    - Log metrics to Cloud Monitoring
+    - Log metrics to monitoring
+    
+    IMPORTANT: This class receives adapters through dependency injection.
+    It NEVER imports cloud SDKs directly - all operations go through interfaces.
     """
     
     def __init__(
         self,
         config: Config,
-        job_queue: JobQueue,
-        firestore: Any,  # FirestoreClient type hint avoided for circular import
+        job_queue: QueueInterface,
+        storage: StorageInterface,
+        llm: LLMInterface,
+        monitoring: MonitoringInterface,
     ):
+        """
+        Initialize Agent Brain with injected adapters.
+        
+        Args:
+            config: Platform configuration
+            job_queue: Queue interface (local or cloud)
+            storage: Storage interface (local or cloud)
+            llm: LLM interface (local templates or cloud Vertex AI)
+            monitoring: Monitoring interface (local or cloud)
+        """
         self.config = config
         self.job_queue = job_queue
-        self.firestore = firestore
+        self.storage = storage
+        self.llm = llm
+        self.monitoring = monitoring
         
         # Pipeline state
         self._running = False
@@ -115,14 +142,21 @@ class AgentBrain:
         self.job_queue.register_handler(JobType.STORE_ASSET, self._handle_storage_job)
         
         # Start worker tasks
-        for i in range(self.config.max_concurrent_jobs):
+        num_workers = min(self.config.max_concurrent_jobs, self.config.low_ram.max_concurrent_scrapes)
+        for i in range(num_workers):
             task = asyncio.create_task(self._worker_loop(f"worker-{i}"))
             self._worker_tasks.append(task)
             
         # Start health check task
         self._health_check_task = asyncio.create_task(self._health_check_loop())
         
-        logger.info(f"Agent Brain started with {self.config.max_concurrent_jobs} workers")
+        await self.monitoring.log(
+            LogLevel.INFO,
+            f"Agent Brain started with {num_workers} workers",
+            {"mode": self.config.mode.value}
+        )
+        
+        logger.info(f"Agent Brain started with {num_workers} workers")
         
     async def stop(self) -> None:
         """Stop the agent brain gracefully."""
@@ -139,6 +173,7 @@ class AgentBrain:
         # Wait for tasks to complete
         await asyncio.gather(*self._worker_tasks, return_exceptions=True)
         
+        await self.monitoring.log(LogLevel.INFO, "Agent Brain stopped")
         logger.info("Agent Brain stopped")
         
     async def _worker_loop(self, worker_id: str) -> None:
@@ -160,12 +195,15 @@ class AgentBrain:
                 break
             except Exception as e:
                 logger.error(f"Worker {worker_id} error: {e}", exc_info=True)
+                await self.monitoring.log_error(e, {"worker_id": worker_id})
                 await asyncio.sleep(1)
                 
         logger.info(f"Worker {worker_id} stopped")
         
-    async def _process_job(self, job: Job) -> None:
+    async def _process_job(self, job: JobData) -> None:
         """Process a single job based on its type."""
+        start_time = datetime.utcnow()
+        
         try:
             self._active_tasks.add(job.id)
             
@@ -173,6 +211,15 @@ class AgentBrain:
             if handler:
                 await handler(job)
                 await self.job_queue.complete(job.id)
+                
+                # Record success
+                duration = (datetime.utcnow() - start_time).total_seconds()
+                await self.monitoring.record_pipeline_event(
+                    stage=job.job_type.value,
+                    event_type="completed",
+                    duration_seconds=duration,
+                    success=True
+                )
             else:
                 raise ValueError(f"No handler for job type: {job.job_type}")
                 
@@ -181,11 +228,21 @@ class AgentBrain:
             await self.job_queue.fail(job.id, str(e), retry=True)
             self._metrics.errors += 1
             
+            # Record failure
+            duration = (datetime.utcnow() - start_time).total_seconds()
+            await self.monitoring.record_pipeline_event(
+                stage=job.job_type.value,
+                event_type="failed",
+                duration_seconds=duration,
+                success=False,
+                metadata={"error": str(e)}
+            )
+            
         finally:
             self._active_tasks.discard(job.id)
             self._metrics.last_updated = datetime.utcnow()
             
-    async def _handle_scrape_job(self, job: Job) -> None:
+    async def _handle_scrape_job(self, job: JobData) -> None:
         """Handle a scraping job by dispatching to Node.js scraper."""
         source = job.payload.get("source")
         query = job.payload.get("query")
@@ -206,9 +263,16 @@ class AgentBrain:
             
             # Create feature extraction jobs for each asset
             for asset in assets:
+                # Store asset first
+                await self.storage.store_asset(
+                    asset_id=asset.get("id"),
+                    data=asset
+                )
+                
+                # Then create feature extraction job
                 await self.job_queue.create_feature_extraction_job(
                     asset_id=asset.get("id"),
-                    asset_url=asset.get("url"),
+                    asset_url=asset.get("url") or asset.get("imageUrl", ""),
                     asset_type=asset.get("type", "image")
                 )
                 
@@ -219,10 +283,16 @@ class AgentBrain:
                 self._metrics.source_metrics[source] = {"scraped": 0, "errors": 0}
             self._metrics.source_metrics[source]["scraped"] += len(assets)
             
+            # Record metrics
+            await self.monitoring.increment_counter(
+                f"source_{source}_scraped",
+                len(assets)
+            )
+            
         else:
             raise RuntimeError(f"Scraping failed: {result.get('error')}")
             
-    async def _handle_feature_extraction_job(self, job: Job) -> None:
+    async def _handle_feature_extraction_job(self, job: JobData) -> None:
         """Handle a feature extraction job."""
         asset_id = job.payload.get("asset_id")
         asset_url = job.payload.get("asset_url")
@@ -230,19 +300,19 @@ class AgentBrain:
         
         logger.info(f"Extracting features for asset: {asset_id}")
         
-        # Call feature extraction module
+        # Import feature extractor (no cloud deps)
         from feature_extraction.extract_features import FeatureExtractor
         
         extractor = FeatureExtractor()
         features = await extractor.extract(asset_url, asset_type)
         
-        # Store features in Firestore
-        await self.firestore.update_asset(asset_id, {"features": features})
+        # Store features using storage interface
+        await self.storage.update_asset(asset_id, {"features": features})
         
         self._metrics.features_extracted += 1
         
         # Create industry classification job
-        await self.job_queue.enqueue(Job(
+        await self.job_queue.enqueue(JobData(
             id=f"classify-{asset_id}",
             job_type=JobType.CLASSIFY_INDUSTRY,
             payload={
@@ -251,26 +321,28 @@ class AgentBrain:
             }
         ))
         
-    async def _handle_classification_job(self, job: Job) -> None:
+    async def _handle_classification_job(self, job: JobData) -> None:
         """Handle an industry classification job."""
         asset_id = job.payload.get("asset_id")
         features = job.payload.get("features", {})
         
         logger.info(f"Classifying industry for asset: {asset_id}")
         
-        # Call classifier (stub)
+        # Import classifier (no cloud deps)
         from feature_extraction.extract_features import IndustryClassifier
         
         classifier = IndustryClassifier()
         industry = await classifier.classify(features)
         
-        # Update Firestore
-        await self.firestore.update_asset(asset_id, {"industry": industry})
+        # Update storage
+        await self.storage.update_asset(asset_id, {"industry": industry})
         
         # Update industry metrics
         if industry not in self._metrics.industry_metrics:
             self._metrics.industry_metrics[industry] = 0
         self._metrics.industry_metrics[industry] += 1
+        
+        await self.monitoring.increment_counter(f"industry_{industry}")
         
         # Create prompt generation job
         await self.job_queue.create_prompt_generation_job(
@@ -279,7 +351,7 @@ class AgentBrain:
             industry=industry
         )
         
-    async def _handle_prompt_generation_job(self, job: Job) -> None:
+    async def _handle_prompt_generation_job(self, job: JobData) -> None:
         """Handle a reverse-prompt generation job."""
         asset_id = job.payload.get("asset_id")
         features = job.payload.get("features", {})
@@ -287,36 +359,31 @@ class AgentBrain:
         
         logger.info(f"Generating reverse prompt for asset: {asset_id}")
         
-        # Call Vertex AI for prompt generation
-        from reverse_prompt.generate_prompt import ReversePromptGenerator
-        
-        generator = ReversePromptGenerator(
-            project_id=self.config.gcp_project_id,
-            location=self.config.vertex_ai.location if self.config.vertex_ai else "us-central1"
-        )
-        
-        prompts = await generator.generate(
+        # Use injected LLM interface (handles local vs cloud automatically)
+        prompt_result = await self.llm.generate_prompt(
             features=features,
             industry=industry
         )
         
-        # Store prompts in Firestore
-        await self.firestore.update_asset(asset_id, {
-            "reverse_prompt": prompts.get("positive"),
-            "negative_prompt": prompts.get("negative"),
-            "prompt_metadata": prompts.get("metadata"),
+        # Store prompts using storage interface
+        await self.storage.update_asset(asset_id, {
+            "reverse_prompt": prompt_result.positive,
+            "negative_prompt": prompt_result.negative,
+            "prompt_metadata": prompt_result.metadata,
         })
         
         self._metrics.prompts_generated += 1
         
-    async def _handle_storage_job(self, job: Job) -> None:
+        await self.monitoring.increment_counter("prompts_generated")
+        
+    async def _handle_storage_job(self, job: JobData) -> None:
         """Handle an asset storage job."""
         asset_id = job.payload.get("asset_id")
         asset_data = job.payload.get("data", {})
         
         logger.info(f"Storing asset: {asset_id}")
         
-        await self.firestore.store_asset(asset_id, asset_data)
+        await self.storage.store_asset(asset_id, asset_data)
         self._metrics.assets_stored += 1
         
     async def _call_node_scraper(
@@ -338,13 +405,20 @@ class AgentBrain:
                 
             if filters:
                 cmd.extend(["--filters", json.dumps(filters)])
+            
+            # Apply low-RAM limits
+            max_items = min(
+                filters.get("maxItems", 100),
+                self.config.low_ram.global_job_cap
+            )
+            cmd.extend(["--max-items", str(max_items)])
                 
             # Run scraper as subprocess
             process = await asyncio.create_subprocess_exec(
                 *cmd,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                cwd=self.config.gcp_project_id  # Should be project root
+                cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
             )
             
             stdout, stderr = await asyncio.wait_for(
@@ -395,7 +469,7 @@ class AgentBrain:
                 logger.error(f"Health check error: {e}")
                 
     async def _report_health(self) -> None:
-        """Report health metrics to Cloud Monitoring."""
+        """Report health metrics to monitoring."""
         queue_metrics = self.job_queue.get_metrics()
         
         health_data = {
@@ -418,28 +492,20 @@ class AgentBrain:
             "industry_metrics": self._metrics.industry_metrics,
         }
         
-        logger.info(f"Health report: {json.dumps(health_data)}")
+        await self.monitoring.log(LogLevel.INFO, "Health report", health_data)
         
-        # In production, send to Cloud Monitoring
-        if self.config.enable_cloud_monitoring:
-            await self._send_to_cloud_monitoring(health_data)
-            
-    async def _send_to_cloud_monitoring(self, data: Dict[str, Any]) -> None:
-        """Send metrics to Google Cloud Monitoring."""
-        try:
-            from google.cloud import monitoring_v3
-            
-            client = monitoring_v3.MetricServiceClient()
-            project_path = f"projects/{self.config.gcp_project_id}"
-            
-            # Create time series for each metric
-            # This is a stub - implement full metrics in production
-            logger.debug(f"Would send metrics to Cloud Monitoring: {data}")
-            
-        except ImportError:
-            logger.debug("Cloud Monitoring client not available")
-        except Exception as e:
-            logger.warning(f"Failed to send metrics: {e}")
+        # Report health status
+        from .interfaces.monitoring import HealthStatus
+        
+        await self.monitoring.report_health(HealthStatus(
+            healthy=self._metrics.errors < 10,
+            components={
+                "queue": queue_metrics.failed_jobs < queue_metrics.total_jobs * 0.1,
+                "storage": True,  # Assume healthy if no exceptions
+                "llm": self.llm.is_available(),
+            },
+            details=health_data
+        ))
             
     # Public API methods
     
@@ -456,7 +522,7 @@ class AgentBrain:
                 query=task.query,
                 filters={
                     **task.filters,
-                    "max_items": task.max_items,
+                    "max_items": min(task.max_items, self.config.low_ram.global_job_cap),
                     "industry_hint": task.industry_hint.value if task.industry_hint else None,
                 },
                 priority=1 if task.industry_hint else 0
@@ -470,6 +536,7 @@ class AgentBrain:
         """Get current pipeline status."""
         return {
             "running": self._running,
+            "mode": self.config.mode.value,
             "active_tasks": len(self._active_tasks),
             "metrics": {
                 "assets_scraped": self._metrics.assets_scraped,
@@ -478,7 +545,10 @@ class AgentBrain:
                 "assets_stored": self._metrics.assets_stored,
                 "errors": self._metrics.errors,
             },
-            "queue": self.job_queue.get_metrics().__dict__,
+            "queue": {
+                "size": self.job_queue.get_queue_size(),
+                **self.job_queue.get_metrics().__dict__
+            },
             "last_updated": self._metrics.last_updated.isoformat(),
         }
         
@@ -491,12 +561,16 @@ class AgentBrain:
         """Trigger a full pipeline run across specified sources."""
         sources = sources or list(ScraperSource)
         
+        # Apply job cap
+        max_items = min(max_items_per_source, self.config.low_ram.global_job_cap)
+        
         tasks = []
         for source in sources:
-            if self.config.scrapers.get(source, {}).get("enabled", True):
+            scraper_config = self.config.scrapers.get(source)
+            if scraper_config and scraper_config.enabled:
                 task = ScrapingTask(
                     source=source,
-                    max_items=max_items_per_source,
+                    max_items=max_items,
                 )
                 tasks.append(task)
                 
@@ -504,8 +578,12 @@ class AgentBrain:
         
         return {
             "triggered": True,
+            "mode": self.config.mode.value,
             "sources": [s.value for s in sources],
             "job_ids": job_ids,
             "total_jobs": len(job_ids),
         }
 
+
+# Import os for path operations
+import os

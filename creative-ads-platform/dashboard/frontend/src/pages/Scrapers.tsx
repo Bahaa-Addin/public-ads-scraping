@@ -10,12 +10,14 @@ import {
   Clock,
   TrendingUp,
   Zap,
+  Radar,
 } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Badge } from '@/components/ui/Badge'
+import { EmptyState } from '@/components/ui/EmptyState'
 import { getScraperStatuses, getScraperMetrics, triggerScraping, triggerAllScrapers } from '@/lib/api'
 import { formatRelativeTime, formatSourceName, formatNumber, formatPercent, cn } from '@/lib/utils'
 
@@ -222,22 +224,32 @@ export default function Scrapers() {
 
       {/* Scraper Status Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {isLoading
-          ? Array.from({ length: 4 }).map((_, i) => (
-              <Card key={i} className="p-6">
-                <div className="animate-pulse space-y-4">
-                  <div className="flex items-center gap-3">
-                    <div className="skeleton w-12 h-12 rounded-lg" />
-                    <div className="skeleton h-6 w-40" />
-                  </div>
-                  <div className="skeleton h-4 w-full" />
-                  <div className="skeleton h-4 w-3/4" />
+        {isLoading ? (
+          Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i} className="p-6">
+              <div className="animate-pulse space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="skeleton w-12 h-12 rounded-lg" />
+                  <div className="skeleton h-6 w-40" />
                 </div>
-              </Card>
-            ))
-          : statuses?.map((status) => (
-              <ScraperCard key={status.source} status={status} />
-            ))}
+                <div className="skeleton h-4 w-full" />
+                <div className="skeleton h-4 w-3/4" />
+              </div>
+            </Card>
+          ))
+        ) : !statuses || statuses.length === 0 ? (
+          <Card className="md:col-span-2 p-12">
+            <EmptyState
+              icon={Radar}
+              title="No scrapers configured"
+              description="Scraper sources will appear here when the backend is connected"
+            />
+          </Card>
+        ) : (
+          statuses.map((status) => (
+            <ScraperCard key={status.source} status={status} />
+          ))
+        )}
       </div>
     </div>
   )

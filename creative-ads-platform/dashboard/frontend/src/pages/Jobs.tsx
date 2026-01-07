@@ -9,12 +9,16 @@ import {
   ChevronLeft,
   ChevronRight,
   MoreVertical,
+  ListTodo,
+  Radar,
 } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Select } from '@/components/ui/Select'
 import { SearchInput } from '@/components/ui/Input'
 import { StatusBadge } from '@/components/ui/Badge'
+import { EmptyState } from '@/components/ui/EmptyState'
 import {
   Table,
   TableHead,
@@ -233,8 +237,21 @@ export default function Jobs() {
           <TableBody>
             {isLoading ? (
               <TableLoading rows={5} cols={8} />
-            ) : jobs?.jobs.length === 0 ? (
-              <TableEmpty message="No jobs found" />
+            ) : !jobs?.jobs || jobs.jobs.length === 0 ? (
+              <tr>
+                <td colSpan={8} className="py-12">
+                  <EmptyState
+                    icon={ListTodo}
+                    title={filters.status || filters.job_type ? "No matching jobs" : "No jobs yet"}
+                    description={
+                      filters.status || filters.job_type
+                        ? "Try adjusting your filters to find jobs"
+                        : "Jobs will appear here when you start scraping assets or processing data"
+                    }
+                    size="sm"
+                  />
+                </td>
+              </tr>
             ) : (
               jobs?.jobs.map((job) => (
                 <TableRow

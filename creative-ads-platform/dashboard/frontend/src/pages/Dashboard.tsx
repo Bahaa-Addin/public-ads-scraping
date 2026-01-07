@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import {
-  Images,
+  Image,
   Sparkles,
   MessageSquare,
   AlertCircle,
@@ -8,15 +8,17 @@ import {
   Activity,
   TrendingUp,
   Zap,
+  BarChart3,
+  PieChartIcon,
+  ListTodo,
 } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
 import { StatCard } from '@/components/ui/StatCard'
 import { StatusBadge } from '@/components/ui/Badge'
+import { EmptyState } from '@/components/ui/EmptyState'
 import { getDashboardMetrics, getJobs, getIndustryDistribution, getTimeSeries } from '@/lib/api'
 import { formatNumber, formatDuration, formatRelativeTime, INDUSTRY_COLORS, formatIndustryName } from '@/lib/utils'
 import {
-  LineChart,
-  Line,
   AreaChart,
   Area,
   PieChart,
@@ -27,45 +29,56 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend,
 } from 'recharts'
 import { format, parseISO } from 'date-fns'
 
 export default function Dashboard() {
-  const { data: metrics, isLoading: metricsLoading } = useQuery({
+  const { data: metrics, isLoading: metricsLoading, isError: metricsError } = useQuery({
     queryKey: ['dashboardMetrics'],
     queryFn: getDashboardMetrics,
     refetchInterval: 10000,
   })
 
-  const { data: recentJobs } = useQuery({
+  const { data: recentJobs, isLoading: jobsLoading } = useQuery({
     queryKey: ['recentJobs'],
     queryFn: () => getJobs({ page_size: 5 }),
     refetchInterval: 15000,
   })
 
-  const { data: industryData } = useQuery({
+  const { data: industryData, isLoading: industryLoading } = useQuery({
     queryKey: ['industryDistribution'],
     queryFn: getIndustryDistribution,
   })
 
-  const { data: throughputData } = useQuery({
+  const { data: throughputData, isLoading: throughputLoading } = useQuery({
     queryKey: ['throughputTimeSeries'],
     queryFn: () => getTimeSeries('assets_scraped', 24),
   })
 
   // Format time series data for Recharts
-  const chartData = throughputData?.data.map((point) => ({
+  const chartData = throughputData?.data?.map((point) => ({
     time: format(parseISO(point.timestamp), 'HH:mm'),
     value: point.value,
   })) || []
 
   // Format pie chart data
-  const pieData = industryData?.slice(0, 8).map((item) => ({
+  const pieData = industryData?.filter(item => item.count > 0).slice(0, 8).map((item) => ({
     name: formatIndustryName(item.industry),
     value: item.count,
     color: INDUSTRY_COLORS[item.industry] || '#6b7280',
   })) || []
+
+  // Check if we have any real data
+  const hasAssets = metrics?.pipeline?.assets_scraped > 0
+  const hasChartData = chartData.length > 0 && chartData.some(d => d.value > 0)
+  const hasPieData = pieData.length > 0 && pieData.some(d => d.value > 0)
+  const hasJobs = recentJobs?.jobs && recentJobs.jobs.length > 0
+  const hasQueueData = metrics?.queue && (
+    metrics.queue.pending_jobs > 0 ||
+    metrics.queue.in_progress_jobs > 0 ||
+    metrics.queue.completed_jobs > 0 ||
+    metrics.queue.failed_jobs > 0
+  )
 
   return (
     <div className="space-y-6">
@@ -81,38 +94,38 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Assets Scraped"
-          value={metrics?.pipeline.assets_scraped || 0}
-          icon={Images}
+          value={metrics?.pipeline?.assets_scraped ?? 0}
+          icon={Image}
           color="blue"
-          change={12.5}
-          changeLabel="vs last week"
+          change={hasAssets ? 12.5 : undefined}
+          changeLabel={hasAssets ? "vs last week" : undefined}
           loading={metricsLoading}
         />
         <StatCard
           title="Features Extracted"
-          value={metrics?.pipeline.features_extracted || 0}
+          value={metrics?.pipeline?.features_extracted ?? 0}
           icon={Sparkles}
           color="purple"
-          change={8.3}
-          changeLabel="vs last week"
+          change={hasAssets ? 8.3 : undefined}
+          changeLabel={hasAssets ? "vs last week" : undefined}
           loading={metricsLoading}
         />
         <StatCard
           title="Prompts Generated"
-          value={metrics?.pipeline.prompts_generated || 0}
+          value={metrics?.pipeline?.prompts_generated ?? 0}
           icon={MessageSquare}
           color="green"
-          change={15.2}
-          changeLabel="vs last week"
+          change={hasAssets ? 15.2 : undefined}
+          changeLabel={hasAssets ? "vs last week" : undefined}
           loading={metricsLoading}
         />
         <StatCard
           title="Error Rate"
-          value={`${metrics?.system.error_rate_percent?.toFixed(1) || 0}%`}
+          value={`${metrics?.system?.error_rate_percent?.toFixed(1) ?? 0}%`}
           icon={AlertCircle}
-          color={metrics?.system.error_rate_percent > 5 ? 'red' : 'cyan'}
-          change={-2.1}
-          changeLabel="vs last week"
+          color={(metrics?.system?.error_rate_percent ?? 0) > 5 ? 'red' : 'cyan'}
+          change={hasAssets ? -2.1 : undefined}
+          changeLabel={hasAssets ? "vs last week" : undefined}
           loading={metricsLoading}
         />
       </div>
@@ -129,40 +142,53 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData}>
-                  <defs>
-                    <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-                  <XAxis
-                    dataKey="time"
-                    stroke="#71717a"
-                    fontSize={12}
-                    tickLine={false}
-                  />
-                  <YAxis stroke="#71717a" fontSize={12} tickLine={false} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: '#27272a',
-                      border: '1px solid #3f3f46',
-                      borderRadius: '8px',
-                    }}
-                    labelStyle={{ color: '#fff' }}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="value"
-                    stroke="#0ea5e9"
-                    strokeWidth={2}
-                    fillOpacity={1}
-                    fill="url(#colorValue)"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
+              {throughputLoading ? (
+                <div className="h-full flex items-center justify-center">
+                  <div className="animate-pulse text-surface-500">Loading chart...</div>
+                </div>
+              ) : hasChartData ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={chartData}>
+                    <defs>
+                      <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
+                    <XAxis
+                      dataKey="time"
+                      stroke="#71717a"
+                      fontSize={12}
+                      tickLine={false}
+                    />
+                    <YAxis stroke="#71717a" fontSize={12} tickLine={false} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: '#27272a',
+                        border: '1px solid #3f3f46',
+                        borderRadius: '8px',
+                      }}
+                      labelStyle={{ color: '#fff' }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="value"
+                      stroke="#0ea5e9"
+                      strokeWidth={2}
+                      fillOpacity={1}
+                      fill="url(#colorValue)"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <EmptyState
+                  icon={BarChart3}
+                  title="No throughput data yet"
+                  description="Start scraping assets to see pipeline throughput over time"
+                  size="sm"
+                />
+              )}
             </div>
           </CardContent>
         </Card>
@@ -177,43 +203,58 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={pieData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={100}
-                    paddingAngle={2}
-                    dataKey="value"
-                  >
-                    {pieData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: '#27272a',
-                      border: '1px solid #3f3f46',
-                      borderRadius: '8px',
-                    }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
+              {industryLoading ? (
+                <div className="h-full flex items-center justify-center">
+                  <div className="animate-pulse text-surface-500">Loading...</div>
+                </div>
+              ) : hasPieData ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={pieData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={100}
+                      paddingAngle={2}
+                      dataKey="value"
+                    >
+                      {pieData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: '#27272a',
+                        border: '1px solid #3f3f46',
+                        borderRadius: '8px',
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <EmptyState
+                  icon={PieChartIcon}
+                  title="No industry data yet"
+                  description="Assets will be categorized by industry as they're processed"
+                  size="sm"
+                />
+              )}
             </div>
             {/* Legend */}
-            <div className="grid grid-cols-2 gap-2 mt-4">
-              {pieData.slice(0, 6).map((item) => (
-                <div key={item.name} className="flex items-center gap-2 text-xs">
-                  <span
-                    className="w-2 h-2 rounded-full"
-                    style={{ backgroundColor: item.color }}
-                  />
-                  <span className="text-surface-400 truncate">{item.name}</span>
-                </div>
-              ))}
-            </div>
+            {hasPieData && (
+              <div className="grid grid-cols-2 gap-2 mt-4">
+                {pieData.slice(0, 6).map((item) => (
+                  <div key={item.name} className="flex items-center gap-2 text-xs">
+                    <span
+                      className="w-2 h-2 rounded-full"
+                      style={{ backgroundColor: item.color }}
+                    />
+                    <span className="text-surface-400 truncate">{item.name}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -229,40 +270,70 @@ export default function Dashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-surface-400">Pending Jobs</span>
-                <span className="text-xl font-semibold text-white">
-                  {formatNumber(metrics?.queue.pending_jobs || 0)}
-                </span>
+            {metricsLoading ? (
+              <div className="py-8 text-center text-surface-500 animate-pulse">
+                Loading queue status...
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-surface-400">In Progress</span>
-                <span className="text-xl font-semibold text-brand-400">
-                  {formatNumber(metrics?.queue.in_progress_jobs || 0)}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-surface-400">Completed Today</span>
-                <span className="text-xl font-semibold text-success-500">
-                  {formatNumber(metrics?.queue.completed_jobs || 0)}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-surface-400">Failed</span>
-                <span className="text-xl font-semibold text-danger-500">
-                  {formatNumber(metrics?.queue.failed_jobs || 0)}
-                </span>
-              </div>
-              <div className="pt-4 border-t border-surface-800">
+            ) : hasQueueData ? (
+              <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-surface-400">Avg Processing Time</span>
-                  <span className="text-white font-medium">
-                    {formatDuration(metrics?.queue.avg_processing_time_seconds || 0)}
+                  <span className="text-surface-400">Pending Jobs</span>
+                  <span className="text-xl font-semibold text-white">
+                    {formatNumber(metrics?.queue?.pending_jobs ?? 0)}
                   </span>
                 </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-surface-400">In Progress</span>
+                  <span className="text-xl font-semibold text-brand-400">
+                    {formatNumber(metrics?.queue?.in_progress_jobs ?? 0)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-surface-400">Completed Today</span>
+                  <span className="text-xl font-semibold text-success-500">
+                    {formatNumber(metrics?.queue?.completed_jobs ?? 0)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-surface-400">Failed</span>
+                  <span className="text-xl font-semibold text-danger-500">
+                    {formatNumber(metrics?.queue?.failed_jobs ?? 0)}
+                  </span>
+                </div>
+                <div className="pt-4 border-t border-surface-800">
+                  <div className="flex items-center justify-between">
+                    <span className="text-surface-400">Avg Processing Time</span>
+                    <span className="text-white font-medium">
+                      {formatDuration(metrics?.queue?.avg_processing_time_seconds ?? 0)}
+                    </span>
+                  </div>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-surface-400">Pending Jobs</span>
+                  <span className="text-xl font-semibold text-surface-600">0</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-surface-400">In Progress</span>
+                  <span className="text-xl font-semibold text-surface-600">0</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-surface-400">Completed Today</span>
+                  <span className="text-xl font-semibold text-surface-600">0</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-surface-400">Failed</span>
+                  <span className="text-xl font-semibold text-surface-600">0</span>
+                </div>
+                <div className="pt-4 border-t border-surface-800">
+                  <p className="text-xs text-surface-500 text-center">
+                    No jobs have been processed yet
+                  </p>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -275,41 +346,48 @@ export default function Dashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {recentJobs?.jobs.map((job) => (
-                <div
-                  key={job.id}
-                  className="flex items-center justify-between p-3 rounded-lg bg-surface-800/50"
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium text-white truncate">
-                        {job.job_type.replace(/_/g, ' ')}
+            {jobsLoading ? (
+              <div className="py-8 text-center text-surface-500 animate-pulse">
+                Loading recent jobs...
+              </div>
+            ) : hasJobs ? (
+              <div className="space-y-3">
+                {recentJobs?.jobs.map((job) => (
+                  <div
+                    key={job.id}
+                    className="flex items-center justify-between p-3 rounded-lg bg-surface-800/50"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium text-white truncate">
+                          {job.job_type.replace(/_/g, ' ')}
+                        </p>
+                        <StatusBadge status={job.status} />
+                      </div>
+                      <p className="text-xs text-surface-500 mt-1">
+                        {job.source?.replace(/_/g, ' ') || 'System'} •{' '}
+                        {formatRelativeTime(job.created_at)}
                       </p>
-                      <StatusBadge status={job.status} />
                     </div>
-                    <p className="text-xs text-surface-500 mt-1">
-                      {job.source?.replace(/_/g, ' ') || 'System'} •{' '}
-                      {formatRelativeTime(job.created_at)}
-                    </p>
+                    {job.assets_processed > 0 && (
+                      <span className="text-sm text-surface-400">
+                        {job.assets_processed} assets
+                      </span>
+                    )}
                   </div>
-                  {job.assets_processed > 0 && (
-                    <span className="text-sm text-surface-400">
-                      {job.assets_processed} assets
-                    </span>
-                  )}
-                </div>
-              ))}
-              {!recentJobs?.jobs.length && (
-                <p className="text-center text-surface-500 py-4">
-                  No recent jobs
-                </p>
-              )}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <EmptyState
+                icon={ListTodo}
+                title="No jobs yet"
+                description="Jobs will appear here when you start scraping or processing assets"
+                size="sm"
+              />
+            )}
           </CardContent>
         </Card>
       </div>
     </div>
   )
 }
-

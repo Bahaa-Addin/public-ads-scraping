@@ -1,22 +1,36 @@
 #!/usr/bin/env python3
 """
-Creative Ads Platform - Main Orchestration Entry Point
+Creative Ads Platform - Main Entry Point
 
-This is the main entry point for the agentic creative ads scraping
-and reverse-prompting platform. It initializes the Agent Brain and
-coordinates all pipeline components.
+This is the main entry point for the local-first, cloud-optional
+creative ads scraping and reverse-prompting platform.
+
+Usage:
+    # Local mode (default)
+    python main.py
+    
+    # Cloud mode
+    MODE=cloud GCP_PROJECT_ID=your-project python main.py
+
+The platform will:
+1. Detect execution mode (local/cloud)
+2. Initialize appropriate adapters
+3. Start the Agent Brain processing loop
+4. Expose the REST API and dashboard
 """
 
 import asyncio
 import logging
 import signal
 import sys
+import os
 from typing import Optional
 
-from agent.agent_brain import AgentBrain
-from agent.config import Config
-from agent.job_queue import JobQueue
-from firestore.firestore_client import FirestoreClient
+# Ensure proper imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from agent.config import Config, Mode
+from agent.orchestrator import Orchestrator, initialize_orchestrator, shutdown_orchestrator
 
 # Configure logging
 logging.basicConfig(
@@ -31,55 +45,88 @@ logger = logging.getLogger(__name__)
 
 
 class CreativeAdsPlatform:
-    """Main platform orchestrator for the creative ads pipeline."""
+    """
+    Main platform orchestrator for the creative ads pipeline.
+    
+    This class:
+    1. Detects the execution mode (local/cloud)
+    2. Initializes the orchestrator with appropriate adapters
+    3. Starts the Agent Brain
+    4. Handles graceful shutdown
+    """
     
     def __init__(self, config: Optional[Config] = None):
-        self.config = config or Config.from_environment()
-        self.agent: Optional[AgentBrain] = None
-        self.job_queue: Optional[JobQueue] = None
-        self.firestore: Optional[FirestoreClient] = None
+        self.config = config
+        self.orchestrator: Optional[Orchestrator] = None
         self._shutdown_event = asyncio.Event()
         
     async def initialize(self) -> None:
         """Initialize all platform components."""
-        logger.info("Initializing Creative Ads Platform...")
+        logger.info("=" * 60)
+        logger.info("CREATIVE ADS PLATFORM")
+        logger.info("=" * 60)
         
-        # Initialize Firestore client
-        self.firestore = FirestoreClient(
-            project_id=self.config.gcp_project_id,
-            collection_prefix=self.config.firestore_collection_prefix
-        )
-        await self.firestore.connect()
+        # Load config from environment if not provided
+        if not self.config:
+            self.config = Config.from_environment()
         
-        # Initialize job queue (Pub/Sub or local)
-        self.job_queue = JobQueue(
-            project_id=self.config.gcp_project_id,
-            topic_name=self.config.pubsub_topic,
-            subscription_name=self.config.pubsub_subscription
-        )
-        await self.job_queue.initialize()
+        # Log mode
+        mode_str = "LOCAL" if self.config.is_local else "CLOUD"
+        logger.info(f"Execution Mode: {mode_str}")
         
-        # Initialize Agent Brain
-        self.agent = AgentBrain(
-            config=self.config,
-            job_queue=self.job_queue,
-            firestore=self.firestore
-        )
+        if self.config.is_local:
+            logger.info("✓ Running in LOCAL mode - no cloud dependencies")
+            logger.info(f"✓ Data directory: {self.config.data_dir}")
+            logger.info(f"✓ LLM mode: {self.config.llm_mode}")
+        else:
+            logger.info("✓ Running in CLOUD mode")
+            logger.info(f"✓ GCP Project: {self.config.gcp_project_id}")
+            logger.info("✓ Vertex AI: ENABLED")
         
+        logger.info("-" * 60)
+        
+        # Initialize orchestrator (creates and wires adapters)
+        self.orchestrator = await initialize_orchestrator(self.config)
+        
+        # Run health check
+        health = await self.orchestrator.health_check()
+        if health["healthy"]:
+            logger.info("✓ All components healthy")
+        else:
+            logger.warning(f"⚠ Some components unhealthy: {health['components']}")
+        
+        logger.info("=" * 60)
         logger.info("Platform initialized successfully")
+        logger.info("=" * 60)
         
     async def run(self) -> None:
         """Run the main platform loop."""
-        logger.info("Starting Creative Ads Platform...")
-        
         try:
             await self.initialize()
             
-            # Start the agent brain processing loop
-            await self.agent.start()
+            # Import and start Agent Brain
+            from agent.agent_brain import AgentBrain
+            from agent.interfaces.queue import JobType
+            
+            # Create Agent Brain with injected adapters
+            brain = AgentBrain(
+                config=self.config,
+                job_queue=self.orchestrator.get_queue(),
+                storage=self.orchestrator.get_storage(),
+                llm=self.orchestrator.get_llm(),
+                monitoring=self.orchestrator.get_monitoring(),
+            )
+            
+            # Start processing
+            await brain.start()
+            
+            logger.info("Platform running. Press Ctrl+C to stop.")
             
             # Wait for shutdown signal
             await self._shutdown_event.wait()
+            
+            # Stop Agent Brain
+            await brain.stop()
             
         except Exception as e:
             logger.error(f"Platform error: {e}", exc_info=True)
@@ -91,15 +138,8 @@ class CreativeAdsPlatform:
         """Gracefully shutdown all platform components."""
         logger.info("Shutting down Creative Ads Platform...")
         
-        if self.agent:
-            await self.agent.stop()
-            
-        if self.job_queue:
-            await self.job_queue.close()
-            
-        if self.firestore:
-            await self.firestore.close()
-            
+        await shutdown_orchestrator()
+        
         logger.info("Platform shutdown complete")
         
     def request_shutdown(self) -> None:
@@ -119,9 +159,35 @@ def setup_signal_handlers(platform: CreativeAdsPlatform) -> None:
 
 async def main():
     """Main entry point."""
-    logger.info("=" * 60)
-    logger.info("Creative Ads Reverse-Prompting Platform")
-    logger.info("=" * 60)
+    # Print banner
+    print("""
+╔═══════════════════════════════════════════════════════════════════════════════╗
+║                                                                               ║
+║   ██████╗██████╗ ███████╗ █████╗ ████████╗██╗██╗   ██╗███████╗               ║
+║  ██╔════╝██╔══██╗██╔════╝██╔══██╗╚══██╔══╝██║██║   ██║██╔════╝               ║
+║  ██║     ██████╔╝█████╗  ███████║   ██║   ██║██║   ██║█████╗                 ║
+║  ██║     ██╔══██╗██╔══╝  ██╔══██║   ██║   ██║╚██╗ ██╔╝██╔══╝                 ║
+║  ╚██████╗██║  ██║███████╗██║  ██║   ██║   ██║ ╚████╔╝ ███████╗               ║
+║   ╚═════╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═══╝  ╚══════╝               ║
+║                                                                               ║
+║   █████╗ ██████╗ ███████╗    ██████╗ ██╗      █████╗ ████████╗███████╗       ║
+║  ██╔══██╗██╔══██╗██╔════╝    ██╔══██╗██║     ██╔══██╗╚══██╔══╝██╔════╝       ║
+║  ███████║██║  ██║███████╗    ██████╔╝██║     ███████║   ██║   █████╗         ║
+║  ██╔══██║██║  ██║╚════██║    ██╔═══╝ ██║     ██╔══██║   ██║   ██╔══╝         ║
+║  ██║  ██║██████╔╝███████║    ██║     ███████╗██║  ██║   ██║   ██║            ║
+║  ╚═╝  ╚═╝╚═════╝ ╚══════╝    ╚═╝     ╚══════╝╚═╝  ╚═╝   ╚═╝   ╚═╝            ║
+║                                                                               ║
+║  Local-First • Cloud-Optional • Fully Explainable                            ║
+║                                                                               ║
+╚═══════════════════════════════════════════════════════════════════════════════╝
+    """)
+    
+    # Detect and display mode
+    mode = os.environ.get("MODE", "local").lower()
+    if mode == "local":
+        print("🏠 Running in LOCAL MODE - No cloud dependencies\n")
+    else:
+        print("☁️  Running in CLOUD MODE - GCP services enabled\n")
     
     platform = CreativeAdsPlatform()
     setup_signal_handlers(platform)
@@ -137,4 +203,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-

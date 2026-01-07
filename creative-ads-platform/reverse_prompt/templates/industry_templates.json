@@ -1,0 +1,210 @@
+{
+  "version": "1.0.0",
+  "description": "Industry-specific prompt templates for reverse prompt generation",
+  
+  "industries": {
+    "finance": {
+      "base_prompt": "professional financial services advertisement",
+      "tone_keywords": ["trustworthy", "professional", "corporate", "reliable", "secure"],
+      "visual_elements": ["clean graphs", "confident business people", "modern office", "charts", "currency symbols"],
+      "color_palette": ["blues", "greens", "white", "gold accents"],
+      "avoid_keywords": ["clutter", "informal", "bright saturated colors", "playful"],
+      "style_modifiers": {
+        "photorealistic": "professional photography, corporate headshots, office environment",
+        "minimal": "clean lines, negative space, minimal design",
+        "corporate": "business professional, polished, executive"
+      }
+    },
+    
+    "ecommerce": {
+      "base_prompt": "engaging ecommerce product advertisement",
+      "tone_keywords": ["vibrant", "enticing", "action-oriented", "exciting", "promotional"],
+      "visual_elements": ["product showcase", "lifestyle context", "pricing display", "sale badges", "shopping cart"],
+      "color_palette": ["brand colors", "high contrast CTAs", "white backgrounds", "accent colors"],
+      "avoid_keywords": ["dull", "complex backgrounds", "small text", "cluttered"],
+      "style_modifiers": {
+        "product": "product photography, white background, studio lighting",
+        "lifestyle": "lifestyle context, model using product, real-world setting",
+        "promotional": "sale banner, discount badges, urgency elements"
+      }
+    },
+    
+    "saas": {
+      "base_prompt": "modern SaaS product interface advertisement",
+      "tone_keywords": ["modern", "innovative", "efficient", "tech-forward", "sleek"],
+      "visual_elements": ["UI mockups", "dashboard previews", "abstract tech elements", "device frames", "interface screenshots"],
+      "color_palette": ["gradients", "purples", "blues", "dark mode aesthetics", "neon accents"],
+      "avoid_keywords": ["outdated interfaces", "cluttered screens", "generic stock photos"],
+      "style_modifiers": {
+        "dark_mode": "dark interface, neon accents, modern UI",
+        "light_mode": "clean white interface, subtle shadows, minimal design",
+        "isometric": "3D isometric view, floating elements, tech illustration"
+      }
+    },
+    
+    "healthcare": {
+      "base_prompt": "caring healthcare services advertisement",
+      "tone_keywords": ["caring", "professional", "reassuring", "trustworthy", "compassionate"],
+      "visual_elements": ["medical professionals", "clean environments", "wellness imagery", "patients", "medical equipment"],
+      "color_palette": ["soft blues", "greens", "white", "calming tones"],
+      "avoid_keywords": ["graphic medical imagery", "cold clinical", "red warnings", "scary"],
+      "style_modifiers": {
+        "clinical": "clean medical environment, professional staff, modern facility",
+        "wellness": "peaceful, nature elements, meditation, health journey",
+        "telemedicine": "video call, remote consultation, digital health"
+      }
+    },
+    
+    "education": {
+      "base_prompt": "inspiring educational services advertisement",
+      "tone_keywords": ["inspiring", "accessible", "growth-oriented", "empowering", "enlightening"],
+      "visual_elements": ["students", "books", "digital learning", "graduation", "achievement symbols"],
+      "color_palette": ["warm tones", "academic colors", "inviting palettes", "blue", "orange"],
+      "avoid_keywords": ["boring", "dated technology", "empty classroom", "intimidating"],
+      "style_modifiers": {
+        "academic": "university setting, library, scholarly environment",
+        "online": "laptop learning, video courses, digital classroom",
+        "children": "colorful, playful learning, young students"
+      }
+    },
+    
+    "entertainment": {
+      "base_prompt": "exciting entertainment media advertisement",
+      "tone_keywords": ["exciting", "fun", "engaging", "thrilling", "immersive"],
+      "visual_elements": ["dynamic scenes", "characters", "action shots", "movie posters", "gaming elements"],
+      "color_palette": ["bold", "saturated", "high contrast", "vibrant"],
+      "avoid_keywords": ["static", "muted", "corporate", "boring"],
+      "style_modifiers": {
+        "cinematic": "movie poster style, dramatic lighting, key art",
+        "gaming": "game screenshot, character art, action scene",
+        "streaming": "show thumbnails, binge-worthy, episode preview"
+      }
+    },
+    
+    "food_beverage": {
+      "base_prompt": "appetizing food and beverage advertisement",
+      "tone_keywords": ["appetizing", "fresh", "indulgent", "delicious", "mouthwatering"],
+      "visual_elements": ["close-up food", "steam", "texture details", "ingredients", "plating"],
+      "color_palette": ["warm tones", "natural colors", "appetizing presentation", "golden"],
+      "avoid_keywords": ["artificial", "cold", "messy", "unappetizing"],
+      "style_modifiers": {
+        "hero_shot": "close-up food photography, dramatic lighting, texture focus",
+        "lifestyle": "restaurant setting, people enjoying food, social dining",
+        "ingredients": "fresh ingredients, preparation process, farm-to-table"
+      }
+    },
+    
+    "travel": {
+      "base_prompt": "inspiring travel destination advertisement",
+      "tone_keywords": ["adventurous", "aspirational", "relaxing", "exotic", "wanderlust"],
+      "visual_elements": ["scenic destinations", "travelers", "luxury amenities", "landmarks", "nature"],
+      "color_palette": ["natural landscapes", "sunset tones", "ocean blues", "golden hour"],
+      "avoid_keywords": ["crowded", "generic hotel", "tourist trap", "boring"],
+      "style_modifiers": {
+        "adventure": "outdoor activities, exploration, nature photography",
+        "luxury": "resort amenities, spa, premium travel experience",
+        "cultural": "local culture, authentic experiences, heritage sites"
+      }
+    },
+    
+    "automotive": {
+      "base_prompt": "powerful automotive advertisement",
+      "tone_keywords": ["powerful", "sleek", "aspirational", "dynamic", "precision"],
+      "visual_elements": ["vehicle exterior", "interior", "motion blur", "scenic roads", "details"],
+      "color_palette": ["metallic finishes", "dramatic lighting", "bold colors"],
+      "avoid_keywords": ["static", "dirty", "cluttered backgrounds", "old vehicles"],
+      "style_modifiers": {
+        "exterior": "hero shot, dramatic angle, motion blur",
+        "interior": "luxury interior, dashboard, craftsmanship",
+        "action": "driving shot, speed, road environment"
+      }
+    },
+    
+    "real_estate": {
+      "base_prompt": "welcoming real estate property advertisement",
+      "tone_keywords": ["welcoming", "spacious", "aspirational", "homey", "luxurious"],
+      "visual_elements": ["interior shots", "exterior", "natural light", "staging", "architecture"],
+      "color_palette": ["neutral tones", "natural wood", "bright spaces", "warm"],
+      "avoid_keywords": ["cluttered", "poor lighting", "dated decor", "small rooms"],
+      "style_modifiers": {
+        "interior": "room staging, natural light, spacious feel",
+        "exterior": "curb appeal, landscaping, architectural features",
+        "aerial": "drone shot, property overview, neighborhood"
+      }
+    },
+    
+    "fashion": {
+      "base_prompt": "stylish fashion advertisement",
+      "tone_keywords": ["stylish", "confident", "trendy", "elegant", "chic"],
+      "visual_elements": ["models", "outfit details", "lifestyle", "accessories", "editorial"],
+      "color_palette": ["seasonal palettes", "brand colors", "editorial lighting"],
+      "avoid_keywords": ["wrinkled", "poor fit", "dated styles", "unflattering"],
+      "style_modifiers": {
+        "editorial": "high fashion, editorial photography, dramatic poses",
+        "catalog": "clean product shots, multiple angles, detail focus",
+        "lifestyle": "street style, real-world context, aspirational"
+      }
+    },
+    
+    "technology": {
+      "base_prompt": "innovative technology product advertisement",
+      "tone_keywords": ["innovative", "sleek", "futuristic", "cutting-edge", "smart"],
+      "visual_elements": ["devices", "interfaces", "abstract tech", "circuits", "connectivity"],
+      "color_palette": ["dark themes", "neon accents", "clean gradients", "metallic"],
+      "avoid_keywords": ["outdated", "cluttered", "generic stock", "old tech"],
+      "style_modifiers": {
+        "product": "device hero shot, clean background, premium feel",
+        "abstract": "tech abstract, particles, data visualization",
+        "lifestyle": "tech in use, modern lifestyle, connectivity"
+      }
+    }
+  },
+  
+  "style_presets": {
+    "photorealistic": {
+      "suffix": "photorealistic, 8k uhd, dslr, high quality, professional photography",
+      "negative": "illustration, cartoon, drawing, art, anime, 3d render"
+    },
+    "digital_art": {
+      "suffix": "digital art, trending on artstation, highly detailed, vibrant",
+      "negative": "photo, photograph, realistic, stock photo"
+    },
+    "minimalist": {
+      "suffix": "minimalist design, clean, simple, elegant, negative space",
+      "negative": "cluttered, busy, complex, detailed, ornate"
+    },
+    "corporate": {
+      "suffix": "professional, corporate, business, polished, premium",
+      "negative": "casual, informal, playful, quirky, unprofessional"
+    },
+    "vibrant": {
+      "suffix": "vibrant colors, bold, eye-catching, dynamic, saturated",
+      "negative": "muted, dull, desaturated, bland, monochrome"
+    }
+  },
+  
+  "quality_suffixes": {
+    "high": "masterpiece, best quality, highly detailed, 8k resolution",
+    "medium": "good quality, detailed, 4k resolution",
+    "standard": "quality advertisement, professional"
+  },
+  
+  "universal_negative_prompts": [
+    "blurry",
+    "low quality",
+    "distorted",
+    "watermark",
+    "text overlay",
+    "amateur",
+    "bad composition",
+    "ugly",
+    "deformed",
+    "disfigured",
+    "bad anatomy",
+    "worst quality",
+    "jpeg artifacts",
+    "signature",
+    "username"
+  ]
+}
+

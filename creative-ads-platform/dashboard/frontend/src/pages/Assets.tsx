@@ -11,12 +11,16 @@ import {
   ExternalLink,
   Copy,
   Check,
+  Image as ImageIcon,
+  Radar,
 } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Select } from '@/components/ui/Select'
 import { SearchInput } from '@/components/ui/Input'
 import { Badge, StatusBadge } from '@/components/ui/Badge'
+import { EmptyState } from '@/components/ui/EmptyState'
 import { getAssets, getFilterOptions, reprocessAssets, type Asset } from '@/lib/api'
 import { formatRelativeTime, formatSourceName, formatIndustryName, cn, truncate } from '@/lib/utils'
 
@@ -194,6 +198,28 @@ export default function Assets() {
             </div>
           ))}
         </div>
+      ) : !assets?.assets || assets.assets.length === 0 ? (
+        <Card>
+          <CardContent className="py-16">
+            <EmptyState
+              icon={ImageIcon}
+              title={filters.industry || filters.source || filters.search ? "No matching assets" : "No assets yet"}
+              description={
+                filters.industry || filters.source || filters.search
+                  ? "Try adjusting your filters or search query"
+                  : "Start by scraping some creative ads from the Scrapers page"
+              }
+              action={
+                !filters.industry && !filters.source && !filters.search
+                  ? {
+                      label: 'Go to Scrapers',
+                      onClick: () => window.location.href = '/scrapers',
+                    }
+                  : undefined
+              }
+            />
+          </CardContent>
+        </Card>
       ) : view === 'grid' ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {assets?.assets.map((asset) => (

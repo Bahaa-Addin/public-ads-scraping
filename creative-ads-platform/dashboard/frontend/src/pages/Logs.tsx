@@ -11,11 +11,13 @@ import {
   ChevronLeft,
   ChevronRight,
   ExternalLink,
+  FileText,
 } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Select } from '@/components/ui/Select'
 import { SearchInput } from '@/components/ui/Input'
+import { EmptyState } from '@/components/ui/EmptyState'
 import { getLogs, getErrorLogs, getLogStats, type LogEntry } from '@/lib/api'
 import { formatDate, getLogLevelColor, getLogLevelBg, cn } from '@/lib/utils'
 
@@ -167,9 +169,18 @@ export default function Logs() {
                 </div>
               </div>
             ))
-          ) : logs?.logs.length === 0 ? (
-            <div className="p-12 text-center text-surface-500">
-              No logs found
+          ) : !logs?.logs || logs.logs.length === 0 ? (
+            <div className="py-12">
+              <EmptyState
+                icon={FileText}
+                title={filters.level || filters.source || filters.search ? "No matching logs" : "No logs yet"}
+                description={
+                  filters.level || filters.source || filters.search
+                    ? "Try adjusting your filters or search query"
+                    : "Logs will appear here as the pipeline processes jobs"
+                }
+                size="md"
+              />
             </div>
           ) : (
             logs?.logs.map((log, index) => (
