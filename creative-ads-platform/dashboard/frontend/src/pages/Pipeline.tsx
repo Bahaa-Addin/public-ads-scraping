@@ -17,9 +17,14 @@ import {
   Loader2,
   ChevronDown,
   RefreshCw,
+  Monitor,
+  Film,
 } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
+import { ScraperGrid } from '@/components/ScraperGrid'
+import { JobReplayPlayer } from '@/components/JobReplayPlayer'
 import { useEventStream, PipelineEvent } from '@/hooks/useEventStream'
+import { useJobsWithScreenshots } from '@/hooks/useJobScreenshots'
 import { useIsTemplateMode } from '@/lib/useTemplateMode'
 import { cn } from '@/lib/utils'
 import { useMutation } from '@tanstack/react-query'
@@ -161,11 +166,16 @@ export default function Pipeline() {
   const [selectedSources, setSelectedSources] = useState<string[]>(['meta_ad_library'])
   const [query, setQuery] = useState('')
   const [limit, setLimit] = useState(50)
+  const [activeTab, setActiveTab] = useState<'timeline' | 'live' | 'replays'>('timeline')
+  const [selectedReplayJob, setSelectedReplayJob] = useState<string | null>(null)
 
   // SSE connection
   const { events, connected, paused, setPaused, clearEvents, reconnect } = useEventStream(
     `${apiUrl}/api/v1/events/stream`
   )
+
+  // Jobs with screenshots (for replay)
+  const { data: jobsWithScreenshots } = useJobsWithScreenshots()
 
   // Job mutations
   const pipelineMutation = useMutation({
@@ -378,72 +388,201 @@ export default function Pipeline() {
         </CardContent>
       </Card>
 
-      {/* Live Timeline */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="w-5 h-5 text-brand-500" />
-              Live Timeline
-              {events.length > 0 && (
-                <span className="ml-2 px-2 py-0.5 rounded-full bg-surface-800 text-surface-400 text-xs">
-                  {events.length} events
-                </span>
-              )}
-            </CardTitle>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setPaused(!paused)}
-                className={cn(
-                  'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors',
-                  paused
-                    ? 'bg-brand-500/10 text-brand-400 border border-brand-500/20'
-                    : 'bg-surface-800 text-surface-400 border border-surface-700 hover:border-surface-600'
-                )}
-              >
-                {paused ? <Play className="w-3.5 h-3.5" /> : <Pause className="w-3.5 h-3.5" />}
-                {paused ? 'Resume' : 'Pause'}
-              </button>
-              <button
-                onClick={clearEvents}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-surface-800 text-surface-400 border border-surface-700 hover:border-surface-600 transition-colors"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                Clear
-              </button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {events.length === 0 ? (
-            <div className="py-12 text-center">
-              <div className="w-16 h-16 mx-auto rounded-full bg-surface-800 flex items-center justify-center mb-4">
-                <Clock className="w-8 h-8 text-surface-600" />
-              </div>
-              <p className="text-surface-400 font-medium">No events yet</p>
-              <p className="text-surface-500 text-sm mt-1">
-                Start a job to see real-time progress here
-              </p>
-            </div>
-          ) : (
-            <div className="max-h-[600px] overflow-y-auto pr-2">
-              {events.map((event, index) => (
-                <TimelineEvent key={`${event.timestamp}-${index}`} event={event} />
-              ))}
-            </div>
+      {/* Tab Selector */}
+      <div className="flex items-center gap-1 p-1 bg-surface-800 rounded-lg w-fit">
+        <button
+          onClick={() => setActiveTab('timeline')}
+          className={cn(
+            'flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors',
+            activeTab === 'timeline'
+              ? 'bg-surface-700 text-white'
+              : 'text-surface-400 hover:text-surface-300'
           )}
+        >
+          <Clock className="w-4 h-4" />
+          Timeline
+          {events.length > 0 && (
+            <span className="px-1.5 py-0.5 rounded-full bg-surface-600 text-xs">
+              {events.length}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={() => setActiveTab('live')}
+          className={cn(
+            'flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors',
+            activeTab === 'live'
+              ? 'bg-surface-700 text-white'
+              : 'text-surface-400 hover:text-surface-300'
+          )}
+        >
+          <Monitor className="w-4 h-4" />
+          Live View
+        </button>
+        <button
+          onClick={() => setActiveTab('replays')}
+          className={cn(
+            'flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors',
+            activeTab === 'replays'
+              ? 'bg-surface-700 text-white'
+              : 'text-surface-400 hover:text-surface-300'
+          )}
+        >
+          <Film className="w-4 h-4" />
+          Replays
+          {jobsWithScreenshots && jobsWithScreenshots.count > 0 && (
+            <span className="px-1.5 py-0.5 rounded-full bg-surface-600 text-xs">
+              {jobsWithScreenshots.count}
+            </span>
+          )}
+        </button>
+      </div>
 
-          {/* Auto-scroll indicator */}
-          {events.length > 0 && !paused && (
-            <div className="text-center mt-4 text-xs text-surface-500">
-              <span className="inline-flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                Auto-scroll enabled
-              </span>
+      {/* Live Timeline Tab */}
+      {activeTab === 'timeline' && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Clock className="w-5 h-5 text-brand-500" />
+                Live Timeline
+                {events.length > 0 && (
+                  <span className="ml-2 px-2 py-0.5 rounded-full bg-surface-800 text-surface-400 text-xs">
+                    {events.length} events
+                  </span>
+                )}
+              </CardTitle>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setPaused(!paused)}
+                  className={cn(
+                    'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors',
+                    paused
+                      ? 'bg-brand-500/10 text-brand-400 border border-brand-500/20'
+                      : 'bg-surface-800 text-surface-400 border border-surface-700 hover:border-surface-600'
+                  )}
+                >
+                  {paused ? <Play className="w-3.5 h-3.5" /> : <Pause className="w-3.5 h-3.5" />}
+                  {paused ? 'Resume' : 'Pause'}
+                </button>
+                <button
+                  onClick={clearEvents}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-surface-800 text-surface-400 border border-surface-700 hover:border-surface-600 transition-colors"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Clear
+                </button>
+              </div>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </CardHeader>
+          <CardContent>
+            {events.length === 0 ? (
+              <div className="py-12 text-center">
+                <div className="w-16 h-16 mx-auto rounded-full bg-surface-800 flex items-center justify-center mb-4">
+                  <Clock className="w-8 h-8 text-surface-600" />
+                </div>
+                <p className="text-surface-400 font-medium">No events yet</p>
+                <p className="text-surface-500 text-sm mt-1">
+                  Start a job to see real-time progress here
+                </p>
+              </div>
+            ) : (
+              <div className="max-h-[600px] overflow-y-auto pr-2">
+                {events.map((event, index) => (
+                  <TimelineEvent key={`${event.timestamp}-${index}`} event={event} />
+                ))}
+              </div>
+            )}
+
+            {/* Auto-scroll indicator */}
+            {events.length > 0 && !paused && (
+              <div className="text-center mt-4 text-xs text-surface-500">
+                <span className="inline-flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  Auto-scroll enabled
+                </span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Live View Tab */}
+      {activeTab === 'live' && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Monitor className="w-5 h-5 text-brand-500" />
+              Live Scraper View
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ScraperGrid maxColumns={2} />
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Replays Tab */}
+      {activeTab === 'replays' && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Film className="w-5 h-5 text-brand-500" />
+              Job Replays
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {selectedReplayJob ? (
+              <div className="space-y-4">
+                <button
+                  onClick={() => setSelectedReplayJob(null)}
+                  className="text-sm text-brand-400 hover:text-brand-300 flex items-center gap-1"
+                >
+                  ← Back to job list
+                </button>
+                <JobReplayPlayer jobId={selectedReplayJob} />
+              </div>
+            ) : (
+              <div>
+                {!jobsWithScreenshots || jobsWithScreenshots.count === 0 ? (
+                  <div className="py-12 text-center">
+                    <div className="w-16 h-16 mx-auto rounded-full bg-surface-800 flex items-center justify-center mb-4">
+                      <Film className="w-8 h-8 text-surface-600" />
+                    </div>
+                    <p className="text-surface-400 font-medium">No replays available</p>
+                    <p className="text-surface-500 text-sm mt-1">
+                      Complete a scraping job to see its replay here
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <p className="text-sm text-surface-400 mb-4">
+                      {jobsWithScreenshots.count} job{jobsWithScreenshots.count !== 1 ? 's' : ''} with recorded screenshots
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {jobsWithScreenshots.jobs.map((jobId) => (
+                        <button
+                          key={jobId}
+                          onClick={() => setSelectedReplayJob(jobId)}
+                          className="p-4 rounded-lg bg-surface-800 border border-surface-700 hover:border-surface-600 text-left transition-colors"
+                        >
+                          <div className="flex items-center gap-2 mb-2">
+                            <Film className="w-4 h-4 text-brand-500" />
+                            <span className="font-medium text-white">Job Replay</span>
+                          </div>
+                          <p className="text-xs text-surface-500 font-mono truncate">
+                            {jobId}
+                          </p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

@@ -14,18 +14,22 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from .agent_brain import AgentBrain, ScrapingTask, PipelineStage
 from .config import Config, ScraperSource, IndustryCategory
 from .orchestrator import Orchestrator
+from .services import StreamManager, ScreenshotSaver
 
 logger = logging.getLogger(__name__)
 
 # Global instances
 orchestrator: Optional[Orchestrator] = None
+stream_manager: Optional[StreamManager] = None
+screenshot_saver: Optional[ScreenshotSaver] = None
 
 
 # =============================================================================
@@ -108,16 +112,29 @@ start_time = datetime.utcnow()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage application lifecycle."""
-    global orchestrator
+    global orchestrator, stream_manager, screenshot_saver
     
     logger.info("Starting Agent API...")
     
     # Initialize configuration
     config = Config.from_environment()
     
+    # Initialize screenshot saver and stream manager
+    screenshot_saver = ScreenshotSaver(base_path=f"{config.data_dir}/screenshots")
+    stream_manager = StreamManager(
+        screenshot_saver=screenshot_saver,
+        screenshot_interval_seconds=2.0,
+        frame_quality=60,
+        max_width=1280,
+        max_height=720,
+    )
+    
     # Initialize orchestrator with all adapters
     orchestrator = Orchestrator(config)
     await orchestrator.initialize()
+    
+    # Attach stream manager to orchestrator
+    orchestrator.set_stream_manager(stream_manager)
     
     logger.info(f"Agent API initialized (mode={config.mode.value})")
     
@@ -125,6 +142,8 @@ async def lifespan(app: FastAPI):
     
     # Cleanup
     logger.info("Shutting down Agent API...")
+    if stream_manager:
+        await stream_manager.shutdown()
     if orchestrator:
         await orchestrator.shutdown()
 
@@ -599,6 +618,157 @@ async def clear_queue():
         queue._queue.clear()
     
     return {"message": "Queue cleared"}
+
+
+# =============================================================================
+# Live Streaming Endpoints (WebSocket)
+# =============================================================================
+
+@app.websocket("/ws/scraper/{session_id}")
+async def scraper_stream(websocket: WebSocket, session_id: str):
+    """
+    WebSocket endpoint for live scraper video stream.
+    
+    Clients connect to this endpoint to receive real-time video frames
+    from an active scraper session.
+    """
+    if stream_manager is None:
+        await websocket.close(code=1011, reason="Stream manager not initialized")
+        return
+    
+    await websocket.accept()
+    logger.info(f"WebSocket connected for session {session_id}")
+    
+    # Subscribe to the stream
+    stream_manager.subscribe(session_id, websocket)
+    
+    # Send initial session info if available
+    session_info = stream_manager.get_session(session_id)
+    if session_info:
+        await websocket.send_json({
+            "type": "session_info",
+            "session": session_info,
+        })
+    else:
+        await websocket.send_json({
+            "type": "waiting",
+            "message": f"Waiting for session {session_id} to start...",
+        })
+    
+    try:
+        while True:
+            # Keep connection alive by receiving pings/messages
+            data = await websocket.receive_text()
+            # Handle ping/pong
+            if data == "ping":
+                await websocket.send_text("pong")
+    except WebSocketDisconnect:
+        logger.info(f"WebSocket disconnected for session {session_id}")
+    except Exception as e:
+        logger.error(f"WebSocket error for session {session_id}: {e}")
+    finally:
+        stream_manager.unsubscribe(session_id, websocket)
+
+
+@app.get("/api/v1/scrapers/active", tags=["Streaming"])
+async def get_active_scrapers():
+    """Get list of active scraper streaming sessions."""
+    if stream_manager is None:
+        return {"sessions": []}
+    
+    return {"sessions": stream_manager.get_active_sessions()}
+
+
+@app.get("/api/v1/scrapers/{session_id}", tags=["Streaming"])
+async def get_scraper_session(session_id: str):
+    """Get info about a specific scraper session."""
+    if stream_manager is None:
+        raise HTTPException(status_code=503, detail="Stream manager not initialized")
+    
+    session = stream_manager.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    return session
+
+
+# =============================================================================
+# Screenshot Endpoints (Job Replay)
+# =============================================================================
+
+@app.get("/api/v1/jobs/{job_id}/screenshots", tags=["Screenshots"])
+async def get_job_screenshots(job_id: str):
+    """
+    Get list of screenshots for a job.
+    
+    Returns a list of screenshot metadata including URLs for playback.
+    """
+    if screenshot_saver is None:
+        raise HTTPException(status_code=503, detail="Screenshot saver not initialized")
+    
+    screenshots = screenshot_saver.get_job_screenshots(job_id)
+    return {
+        "job_id": job_id,
+        "count": len(screenshots),
+        "screenshots": screenshots,
+    }
+
+
+@app.get("/api/v1/screenshots/{job_id}/{filename}", tags=["Screenshots"])
+async def get_screenshot(job_id: str, filename: str):
+    """
+    Serve a screenshot image file.
+    
+    Returns the JPEG image for display in the replay player.
+    """
+    if screenshot_saver is None:
+        raise HTTPException(status_code=503, detail="Screenshot saver not initialized")
+    
+    # Validate filename to prevent path traversal
+    if ".." in filename or "/" in filename or "\\" in filename:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+    
+    path = screenshot_saver.get_screenshot_path(job_id, filename)
+    if not path:
+        raise HTTPException(status_code=404, detail="Screenshot not found")
+    
+    return FileResponse(path, media_type="image/jpeg")
+
+
+@app.get("/api/v1/jobs/with-screenshots", tags=["Screenshots"])
+async def get_jobs_with_screenshots():
+    """Get list of job IDs that have screenshots available."""
+    if screenshot_saver is None:
+        return {"jobs": []}
+    
+    jobs = screenshot_saver.get_all_jobs_with_screenshots()
+    return {"jobs": jobs, "count": len(jobs)}
+
+
+@app.delete("/api/v1/jobs/{job_id}/screenshots", tags=["Screenshots"])
+async def delete_job_screenshots(job_id: str):
+    """Delete all screenshots for a job."""
+    if screenshot_saver is None:
+        raise HTTPException(status_code=503, detail="Screenshot saver not initialized")
+    
+    success = screenshot_saver.delete_job_screenshots(job_id)
+    if success:
+        return {"message": f"Screenshots deleted for job {job_id}"}
+    else:
+        raise HTTPException(status_code=500, detail="Failed to delete screenshots")
+
+
+@app.get("/api/v1/screenshots/storage", tags=["Screenshots"])
+async def get_screenshot_storage():
+    """Get total storage used by screenshots."""
+    if screenshot_saver is None:
+        return {"bytes": 0, "mb": 0}
+    
+    total_bytes = screenshot_saver.get_total_storage_bytes()
+    return {
+        "bytes": total_bytes,
+        "mb": round(total_bytes / (1024 * 1024), 2),
+    }
 
 
 if __name__ == "__main__":

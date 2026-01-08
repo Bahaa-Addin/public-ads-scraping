@@ -5,6 +5,22 @@
       "sources": [
         "meta_ad_library"
       ],
+      "query": null,
+      "limit": 50
+    },
+    "status": "pending",
+    "assets_processed": 0,
+    "retry_count": 0,
+    "id": "cc941241-ce26-4888-a91c-b4b154307850",
+    "created_at": "2026-01-08T18:24:04.851586",
+    "updated_at": "2026-01-08T18:24:04.851593"
+  },
+  {
+    "job_type": "scrape",
+    "payload": {
+      "sources": [
+        "meta_ad_library"
+      ],
       "query": "creative ads",
       "limit": 50
     },
