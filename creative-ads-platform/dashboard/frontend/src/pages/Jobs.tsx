@@ -6,6 +6,8 @@ import {
   ChevronRight,
   MoreVertical,
   ListTodo,
+  Film,
+  X,
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -13,6 +15,7 @@ import { Select } from '@/components/ui/Select'
 import { SearchInput } from '@/components/ui/Input'
 import { StatusBadge } from '@/components/ui/Badge'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { JobReplayPlayer } from '@/components/JobReplayPlayer'
 import {
   Table,
   TableHead,
@@ -23,6 +26,7 @@ import {
   TableLoading,
 } from '@/components/ui/Table'
 import { useJobs, useJobStats, useControlJobs, useRetryAllFailedJobs } from '@/lib/useDataHooks'
+import { useJobsWithScreenshots } from '@/hooks/useJobScreenshots'
 import { useIsTemplateMode } from '@/lib/useTemplateMode'
 import { formatRelativeTime, formatSourceName, cn } from '@/lib/utils'
 
@@ -48,11 +52,17 @@ export default function Jobs() {
   const isTemplate = useIsTemplateMode()
   const [page, setPage] = useState(1)
   const [selectedJobs, setSelectedJobs] = useState<string[]>([])
+  const [replayJobId, setReplayJobId] = useState<string | null>(null)
   const [filters, setFilters] = useState({
     status: '',
     job_type: '',
     source: '',
   })
+
+  // Fetch jobs that have screenshots for replay
+  const { data: jobsWithScreenshots } = useJobsWithScreenshots()
+  const hasScreenshots = (jobId: string) => 
+    jobsWithScreenshots?.jobs.includes(jobId) ?? false
 
   const { data: jobs, isLoading } = useJobs({
     page,
@@ -261,9 +271,20 @@ export default function Jobs() {
                     {formatRelativeTime(job.created_at)}
                   </TableCell>
                   <TableCell>
-                    <button className="p-1 text-surface-400 hover:text-white transition-colors">
-                      <MoreVertical className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center gap-1">
+                      {hasScreenshots(job.id) && (
+                        <button
+                          onClick={() => setReplayJobId(job.id)}
+                          className="p-1 text-brand-400 hover:text-brand-300 transition-colors"
+                          title="View Replay"
+                        >
+                          <Film className="w-4 h-4" />
+                        </button>
+                      )}
+                      <button className="p-1 text-surface-400 hover:text-white transition-colors">
+                        <MoreVertical className="w-4 h-4" />
+                      </button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
@@ -299,6 +320,24 @@ export default function Jobs() {
           </div>
         )}
       </Card>
+
+      {/* Replay Modal */}
+      {replayJobId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
+          <div className="relative w-full max-w-5xl mx-4">
+            <button
+              onClick={() => setReplayJobId(null)}
+              className="absolute -top-12 right-0 p-2 text-white hover:text-surface-300 transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <JobReplayPlayer 
+              jobId={replayJobId} 
+              onClose={() => setReplayJobId(null)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   )
 }

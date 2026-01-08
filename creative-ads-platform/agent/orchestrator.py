@@ -72,6 +72,21 @@ class Orchestrator:
         self._initialized = False
         self._dashboard_url: Optional[str] = None
         self._http_client: Optional[httpx.AsyncClient] = None
+        self._stream_manager: Optional[Any] = None  # StreamManager instance
+    
+    def set_stream_manager(self, stream_manager: Any) -> None:
+        """
+        Set the StreamManager instance for live browser streaming.
+        
+        Args:
+            stream_manager: StreamManager instance from services
+        """
+        self._stream_manager = stream_manager
+        logger.info("StreamManager attached to Orchestrator")
+    
+    def get_stream_manager(self) -> Optional[Any]:
+        """Get the StreamManager instance."""
+        return self._stream_manager
         
     @property
     def adapters(self) -> AdapterRegistry:
@@ -343,6 +358,102 @@ class Orchestrator:
             },
             job_id=job_id,
         )
+    
+    # ==========================================================================
+    # Live Streaming Integration
+    # ==========================================================================
+    
+    async def start_screencast(
+        self,
+        session_id: str,
+        job_id: str,
+        page: Any,
+        source: str = "unknown"
+    ) -> bool:
+        """
+        Start live screencast for a Playwright page.
+        
+        Call this when a scraper begins working with a page to enable
+        real-time streaming to the dashboard.
+        
+        Args:
+            session_id: Unique session identifier
+            job_id: Associated job ID
+            page: Playwright Page object
+            source: Scraper source name
+            
+        Returns:
+            True if screencast started successfully
+        """
+        if not self._stream_manager:
+            logger.debug("StreamManager not available, skipping screencast")
+            return False
+        
+        try:
+            result = await self._stream_manager.start_screencast(
+                session_id=session_id,
+                job_id=job_id,
+                page=page,
+                source=source,
+            )
+            
+            if result:
+                # Emit event that stream started
+                await self.emit_event(
+                    "stream_started",
+                    {
+                        "session_id": session_id,
+                        "source": source,
+                        "message": f"Live stream started for {source}",
+                    },
+                    job_id=job_id,
+                )
+            
+            return result
+        except Exception as e:
+            logger.error(f"Failed to start screencast: {e}")
+            return False
+    
+    async def stop_screencast(self, session_id: str) -> bool:
+        """
+        Stop live screencast for a session.
+        
+        Call this when a scraper finishes working with a page.
+        
+        Args:
+            session_id: The session to stop
+            
+        Returns:
+            True if stopped successfully
+        """
+        if not self._stream_manager:
+            return False
+        
+        try:
+            return await self._stream_manager.stop_screencast(session_id)
+        except Exception as e:
+            logger.error(f"Failed to stop screencast: {e}")
+            return False
+    
+    def update_stream_context(
+        self,
+        session_id: str,
+        url: Optional[str] = None,
+        action: Optional[str] = None
+    ) -> None:
+        """
+        Update the context for a streaming session.
+        
+        Call this as the scraper navigates to provide context
+        for screenshots and timeline display.
+        
+        Args:
+            session_id: The session to update
+            url: Current page URL
+            action: Current action (e.g., "Clicking login", "Scrolling")
+        """
+        if self._stream_manager:
+            self._stream_manager.update_session_context(session_id, url, action)
     
     async def shutdown(self) -> None:
         """Gracefully shutdown all adapters."""
