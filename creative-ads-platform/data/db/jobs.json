@@ -1,1 +1,18 @@
-[]
+[
+  {
+    "job_type": "scrape",
+    "payload": {
+      "sources": [
+        "meta_ad_library"
+      ],
+      "query": "creative ads",
+      "limit": 50
+    },
+    "status": "pending",
+    "assets_processed": 0,
+    "retry_count": 0,
+    "id": "7463dbe9-fe2d-47f0-a152-21401e4d17ce",
+    "created_at": "2026-01-08T18:20:26.433315",
+    "updated_at": "2026-01-08T18:20:26.433326"
+  }
+]

@@ -84,6 +84,20 @@ class MetricsResponse(BaseModel):
     by_industry: Dict[str, int]
 
 
+class JobTriggerRequest(BaseModel):
+    """Request from dashboard to trigger a job."""
+    job_id: str
+    job_type: str
+    payload: Dict[str, Any]
+
+
+class JobTriggerResponse(BaseModel):
+    """Response for job trigger."""
+    status: str
+    message: str
+    job_id: str
+
+
 # =============================================================================
 # Lifespan Management
 # =============================================================================
@@ -157,6 +171,210 @@ async def readiness_check():
     if orchestrator is None:
         raise HTTPException(status_code=503, detail="Orchestrator not initialized")
     return {"status": "ready"}
+
+
+# =============================================================================
+# Dashboard Integration Endpoint
+# =============================================================================
+
+@app.post("/api/v1/jobs/trigger", response_model=JobTriggerResponse, tags=["Dashboard"])
+async def trigger_job_from_dashboard(
+    request: JobTriggerRequest,
+    background_tasks: BackgroundTasks
+):
+    """
+    Trigger a job from the dashboard.
+    
+    This endpoint is called by the dashboard when a user initiates
+    a job through the Pipeline Control Panel.
+    """
+    if orchestrator is None:
+        raise HTTPException(status_code=503, detail="Orchestrator not initialized")
+    
+    logger.info(f"Received job trigger from dashboard: {request.job_id} ({request.job_type})")
+    
+    agent = orchestrator.get_agent()
+    
+    # Emit event that we received the job
+    await orchestrator.emit_event(
+        "job_received",
+        {
+            "message": f"Agent received {request.job_type} job",
+            "job_type": request.job_type,
+            "payload": request.payload,
+        },
+        job_id=request.job_id
+    )
+    
+    # Process the job based on type
+    try:
+        if request.job_type == "scrape":
+            # Queue scraping job
+            sources = request.payload.get("sources", ["meta_ad_library"])
+            query = request.payload.get("query")
+            limit = request.payload.get("limit", 50)
+            
+            await orchestrator.emit_step_started(request.job_id, "scrape", f"Starting scrape for {len(sources)} source(s)")
+            
+            # Trigger scraping in background
+            background_tasks.add_task(
+                _run_scraping_job,
+                request.job_id,
+                sources,
+                query,
+                limit
+            )
+            
+        elif request.job_type == "extract_features":
+            asset_ids = request.payload.get("asset_ids")
+            await orchestrator.emit_step_started(request.job_id, "extract", "Starting feature extraction")
+            
+            background_tasks.add_task(
+                _run_extraction_job,
+                request.job_id,
+                asset_ids
+            )
+            
+        elif request.job_type == "generate_prompt":
+            asset_ids = request.payload.get("asset_ids")
+            await orchestrator.emit_step_started(request.job_id, "generate", "Starting prompt generation")
+            
+            background_tasks.add_task(
+                _run_generation_job,
+                request.job_id,
+                asset_ids
+            )
+            
+        elif request.job_type in ["classify", "classify_industry"]:
+            asset_ids = request.payload.get("asset_ids")
+            await orchestrator.emit_step_started(request.job_id, "classify", "Starting classification")
+            
+            background_tasks.add_task(
+                _run_classification_job,
+                request.job_id,
+                asset_ids
+            )
+            
+        elif request.job_type == "full_pipeline":
+            sources = request.payload.get("sources", ["meta_ad_library"])
+            query = request.payload.get("query")
+            limit = request.payload.get("limit", 50)
+            skip_steps = request.payload.get("skip_steps", [])
+            
+            await orchestrator.emit_pipeline_started(
+                request.job_id,
+                sources,
+                query,
+                [s for s in ["scrape", "extract", "generate", "classify"] if s not in skip_steps]
+            )
+            
+            background_tasks.add_task(
+                _run_full_pipeline,
+                request.job_id,
+                sources,
+                query,
+                limit,
+                skip_steps
+            )
+            
+        else:
+            raise HTTPException(status_code=400, detail=f"Unknown job type: {request.job_type}")
+        
+        return JobTriggerResponse(
+            status="accepted",
+            message=f"Job {request.job_type} accepted for processing",
+            job_id=request.job_id
+        )
+        
+    except Exception as e:
+        logger.error(f"Failed to trigger job: {e}")
+        await orchestrator.emit_error(request.job_id, request.job_type, str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# Background job runners
+async def _run_scraping_job(job_id: str, sources: List[str], query: Optional[str], limit: int):
+    """Run a scraping job in the background."""
+    try:
+        # Simulate scraping progress
+        for i, source in enumerate(sources):
+            progress = ((i + 1) / len(sources)) * 100
+            await orchestrator.emit_step_progress(job_id, "scrape", progress, f"Scraping {source}...")
+            await asyncio.sleep(0.5)  # Placeholder for actual scraping
+        
+        await orchestrator.emit_step_completed(job_id, "scrape", {
+            "sources": sources,
+            "items_scraped": 0,  # Will be real count
+        })
+    except Exception as e:
+        logger.error(f"Scraping job failed: {e}")
+        await orchestrator.emit_error(job_id, "scrape", str(e))
+
+
+async def _run_extraction_job(job_id: str, asset_ids: Optional[List[str]]):
+    """Run a feature extraction job in the background."""
+    try:
+        await orchestrator.emit_step_progress(job_id, "extract", 50, "Extracting features...")
+        await asyncio.sleep(0.5)  # Placeholder
+        await orchestrator.emit_step_completed(job_id, "extract", {"assets_processed": 0})
+    except Exception as e:
+        logger.error(f"Extraction job failed: {e}")
+        await orchestrator.emit_error(job_id, "extract", str(e))
+
+
+async def _run_generation_job(job_id: str, asset_ids: Optional[List[str]]):
+    """Run a prompt generation job in the background."""
+    try:
+        await orchestrator.emit_step_progress(job_id, "generate", 50, "Generating prompts...")
+        await asyncio.sleep(0.5)  # Placeholder
+        await orchestrator.emit_step_completed(job_id, "generate", {"prompts_generated": 0})
+    except Exception as e:
+        logger.error(f"Generation job failed: {e}")
+        await orchestrator.emit_error(job_id, "generate", str(e))
+
+
+async def _run_classification_job(job_id: str, asset_ids: Optional[List[str]]):
+    """Run a classification job in the background."""
+    try:
+        await orchestrator.emit_step_progress(job_id, "classify", 50, "Classifying assets...")
+        await asyncio.sleep(0.5)  # Placeholder
+        await orchestrator.emit_step_completed(job_id, "classify", {"assets_classified": 0})
+    except Exception as e:
+        logger.error(f"Classification job failed: {e}")
+        await orchestrator.emit_error(job_id, "classify", str(e))
+
+
+async def _run_full_pipeline(
+    job_id: str,
+    sources: List[str],
+    query: Optional[str],
+    limit: int,
+    skip_steps: List[str]
+):
+    """Run a full pipeline job in the background."""
+    import time
+    start_time = time.time()
+    
+    try:
+        steps = ["scrape", "extract", "generate", "classify"]
+        active_steps = [s for s in steps if s not in skip_steps]
+        
+        for i, step in enumerate(active_steps):
+            await orchestrator.emit_step_started(job_id, step, f"Starting {step}...")
+            
+            # Simulate step progress
+            for p in range(0, 101, 25):
+                await orchestrator.emit_step_progress(job_id, step, p, f"{step}: {p}%")
+                await asyncio.sleep(0.2)
+            
+            await orchestrator.emit_step_completed(job_id, step, {"completed": True})
+        
+        duration = time.time() - start_time
+        await orchestrator.emit_pipeline_completed(job_id, duration, 0, 0)
+        
+    except Exception as e:
+        logger.error(f"Pipeline job failed: {e}")
+        await orchestrator.emit_error(job_id, "pipeline", str(e))
 
 
 # =============================================================================
