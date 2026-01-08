@@ -2,11 +2,14 @@
 Metrics Service for Dashboard
 
 Provides aggregated metrics and analytics data.
+In local mode, reads from local JSON files instead of Cloud Monitoring.
 """
 
+import json
 import logging
-import random
+import os
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 from functools import lru_cache
 
@@ -36,6 +39,35 @@ class MetricsService:
         self.job_service = job_service
         self._monitoring_client = None
     
+    def _get_data_path(self, filename: str) -> Path:
+        """Get the full path to a data file."""
+        data_dir = self.settings.data_dir
+        if not os.path.isabs(data_dir):
+            backend_dir = Path(__file__).parent.parent.parent
+            data_dir = backend_dir / data_dir
+        return Path(data_dir) / filename
+    
+    def _load_json_file(self, filename: str, default: Any = None) -> Any:
+        """Load a JSON file from the data directory."""
+        path = self._get_data_path(filename)
+        if path.exists():
+            try:
+                with open(path, "r") as f:
+                    return json.load(f)
+            except (json.JSONDecodeError, IOError) as e:
+                logger.warning(f"Failed to load {path}: {e}")
+        return default if default is not None else {}
+    
+    def _save_json_file(self, filename: str, data: Any):
+        """Save data to a JSON file in the data directory."""
+        path = self._get_data_path(filename)
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with open(path, "w") as f:
+                json.dump(data, f, indent=2, default=str)
+        except IOError as e:
+            logger.error(f"Failed to save {path}: {e}")
+    
     async def get_dashboard_metrics(self) -> DashboardMetrics:
         """Get all dashboard metrics."""
         pipeline = await self.get_pipeline_metrics()
@@ -50,42 +82,62 @@ class MetricsService:
         )
     
     async def get_pipeline_metrics(self) -> PipelineMetrics:
-        """Get pipeline-level metrics."""
+        """Get pipeline-level metrics calculated from actual data."""
         industry_dist = await self.firestore.get_industry_distribution()
         source_dist = await self.firestore.get_source_distribution()
         
         total_assets = sum(industry_dist.values())
         
-        # Estimate based on mock ratios
-        features_extracted = int(total_assets * 0.95)
-        prompts_generated = int(total_assets * 0.85)
+        # Calculate from actual asset data
+        if total_assets > 0:
+            assets, _ = await self.firestore.get_assets(page_size=1000)
+            features_extracted = sum(1 for a in assets if a.features)
+            prompts_generated = sum(1 for a in assets if a.reverse_prompt)
+            errors = sum(1 for a in assets if not a.features and not a.reverse_prompt)
+        else:
+            features_extracted = 0
+            prompts_generated = 0
+            errors = 0
         
         return PipelineMetrics(
             assets_scraped=total_assets,
             features_extracted=features_extracted,
             prompts_generated=prompts_generated,
             assets_stored=total_assets,
-            errors=int(total_assets * 0.02),
+            errors=errors,
             by_source=source_dist,
             by_industry=industry_dist
         )
     
     async def get_system_metrics(self) -> SystemMetrics:
-        """Get system-level metrics."""
-        # In production, this would query Cloud Monitoring
-        # For now, return realistic mock values
+        """Get system-level metrics from local files or Cloud Monitoring."""
+        # Load from local file
+        metrics_data = self._load_json_file("metrics/system_metrics.json", {
+            "throughput": 0,
+            "latency": 0,
+            "error_rate": 0,
+            "uptime": 0
+        })
+        
         return SystemMetrics(
-            scraper_throughput_per_minute=45.5,
-            feature_extraction_latency_ms=1250.0,
-            prompt_generation_latency_ms=2800.0,
-            pubsub_queue_length=15,
-            cloud_run_utilization={
-                "agent": 0.35,
-                "scraper": 0.55,
-                "dashboard": 0.20
-            },
-            error_rate_percent=2.3
+            scraper_throughput_per_minute=metrics_data.get("throughput", 0),
+            feature_extraction_latency_ms=metrics_data.get("feature_extraction_latency", 0),
+            prompt_generation_latency_ms=metrics_data.get("prompt_generation_latency", 0),
+            pubsub_queue_length=metrics_data.get("queue_length", 0),
+            cloud_run_utilization=metrics_data.get("utilization", {
+                "agent": 0,
+                "scraper": 0,
+                "dashboard": 0
+            }),
+            error_rate_percent=metrics_data.get("error_rate", 0)
         )
+    
+    async def update_system_metrics(self, updates: Dict[str, Any]):
+        """Update system metrics (called by agent/scrapers)."""
+        current = self._load_json_file("metrics/system_metrics.json", {})
+        current.update(updates)
+        current["last_updated"] = datetime.utcnow().isoformat()
+        self._save_json_file("metrics/system_metrics.json", current)
     
     async def get_industry_distribution(self) -> List[IndustryDistribution]:
         """Get industry distribution with percentages."""
@@ -110,42 +162,90 @@ class MetricsService:
         ]
     
     async def get_scraper_statuses(self) -> List[ScraperStatus]:
-        """Get status of all scrapers."""
-        statuses = []
+        """Get status of all scrapers from local file."""
+        statuses_data = self._load_json_file("metrics/scraper_status.json", [])
         
-        for source in ScraperSource:
+        if not statuses_data:
+            # Return default statuses for all sources with no activity
             source_dist = await self.firestore.get_source_distribution()
-            items = source_dist.get(source.value, 0)
-            
-            statuses.append(ScraperStatus(
-                source=source,
-                enabled=True,
-                running=random.choice([True, False]),  # Mock
-                last_run=datetime.utcnow() - timedelta(minutes=random.randint(5, 120)),
-                items_scraped=items,
-                success_rate=0.95 + random.random() * 0.04,
-                error_count=random.randint(0, 10),
-                last_error=None if random.random() > 0.3 else "Rate limit exceeded"
-            ))
+            return [
+                ScraperStatus(
+                    source=source,
+                    enabled=True,
+                    running=False,
+                    last_run=None,
+                    items_scraped=source_dist.get(source.value, 0),
+                    success_rate=0,
+                    error_count=0,
+                    last_error=None
+                )
+                for source in ScraperSource
+            ]
+        
+        statuses = []
+        for status in statuses_data:
+            try:
+                source = ScraperSource(status.get("source", "meta_ad_library"))
+                statuses.append(ScraperStatus(
+                    source=source,
+                    enabled=status.get("enabled", True),
+                    running=status.get("running", False),
+                    last_run=datetime.fromisoformat(status["last_run"]) if status.get("last_run") else None,
+                    items_scraped=status.get("items_scraped", 0),
+                    success_rate=status.get("success_rate", 0),
+                    error_count=status.get("error_count", 0),
+                    last_error=status.get("last_error")
+                ))
+            except (ValueError, KeyError) as e:
+                logger.warning(f"Failed to parse scraper status: {e}")
         
         return statuses
     
+    async def update_scraper_status(self, source: ScraperSource, updates: Dict[str, Any]):
+        """Update scraper status (called by scrapers)."""
+        statuses = self._load_json_file("metrics/scraper_status.json", [])
+        
+        # Find or create status for this source
+        found = False
+        for status in statuses:
+            if status.get("source") == source.value:
+                status.update(updates)
+                status["source"] = source.value
+                found = True
+                break
+        
+        if not found:
+            updates["source"] = source.value
+            statuses.append(updates)
+        
+        self._save_json_file("metrics/scraper_status.json", statuses)
+    
     async def get_scraper_metrics(self) -> List[ScraperMetrics]:
-        """Get detailed metrics per scraper."""
+        """Get detailed metrics per scraper from actual data."""
         metrics = []
         source_dist = await self.firestore.get_source_distribution()
+        scraper_statuses = await self.get_scraper_statuses()
+        
+        status_map = {s.source.value: s for s in scraper_statuses}
         
         for source in ScraperSource:
             total = source_dist.get(source.value, 0)
-            failed = int(total * 0.02)
+            status = status_map.get(source.value)
+            
+            if status:
+                failed = status.error_count
+                success_rate = status.success_rate
+            else:
+                failed = 0
+                success_rate = 0
             
             metrics.append(ScraperMetrics(
                 source=source,
                 total_items=total,
-                successful_items=total - failed,
+                successful_items=total - failed if total > failed else 0,
                 failed_items=failed,
-                avg_scrape_time_ms=1500 + random.random() * 1000,
-                rate_limit_hits=random.randint(0, 5)
+                avg_scrape_time_ms=0,  # Will be populated by agent
+                rate_limit_hits=0       # Will be populated by agent
             ))
         
         return metrics
@@ -156,45 +256,30 @@ class MetricsService:
         hours: int = 24,
         interval_minutes: int = 60
     ) -> TimeSeriesData:
-        """Get time series data for a metric."""
+        """Get time series data for a metric from local file."""
+        time_series = self._load_json_file("metrics/time_series.json", [])
+        
         now = datetime.utcnow()
+        cutoff = now - timedelta(hours=hours)
+        
+        # Filter data points for this metric within the time range
         data_points = []
-        
-        num_points = (hours * 60) // interval_minutes
-        
-        for i in range(num_points):
-            timestamp = now - timedelta(minutes=i * interval_minutes)
+        for entry in time_series:
+            if entry.get("metric") != metric_name:
+                continue
             
-            # Generate realistic mock values based on metric name
-            if metric_name == "assets_scraped":
-                base_value = 50 + random.random() * 30
-            elif metric_name == "features_extracted":
-                base_value = 45 + random.random() * 25
-            elif metric_name == "prompts_generated":
-                base_value = 40 + random.random() * 20
-            elif metric_name == "error_rate":
-                base_value = 1.5 + random.random() * 3
-            elif metric_name == "queue_length":
-                base_value = 10 + random.random() * 20
-            elif metric_name == "throughput":
-                base_value = 40 + random.random() * 20
-            else:
-                base_value = random.random() * 100
-            
-            # Add some time-of-day variation
-            hour = timestamp.hour
-            if 9 <= hour <= 17:  # Business hours
-                base_value *= 1.3
-            elif 0 <= hour <= 6:  # Night hours
-                base_value *= 0.6
-            
-            data_points.append(TimeSeriesDataPoint(
-                timestamp=timestamp,
-                value=round(base_value, 2)
-            ))
+            try:
+                timestamp = datetime.fromisoformat(entry["timestamp"])
+                if timestamp >= cutoff:
+                    data_points.append(TimeSeriesDataPoint(
+                        timestamp=timestamp,
+                        value=entry.get("value", 0)
+                    ))
+            except (ValueError, KeyError):
+                continue
         
-        # Reverse to get chronological order
-        data_points.reverse()
+        # Sort by timestamp
+        data_points.sort(key=lambda x: x.timestamp)
         
         colors = {
             "assets_scraped": "#3B82F6",
@@ -210,6 +295,25 @@ class MetricsService:
             data=data_points,
             color=colors.get(metric_name, "#6B7280")
         )
+    
+    async def add_time_series_point(self, metric_name: str, value: float):
+        """Add a data point to time series (called by agent/scrapers)."""
+        time_series = self._load_json_file("metrics/time_series.json", [])
+        
+        time_series.append({
+            "metric": metric_name,
+            "timestamp": datetime.utcnow().isoformat(),
+            "value": value
+        })
+        
+        # Keep only last 7 days of data
+        cutoff = datetime.utcnow() - timedelta(days=7)
+        time_series = [
+            entry for entry in time_series
+            if datetime.fromisoformat(entry["timestamp"]) >= cutoff
+        ]
+        
+        self._save_json_file("metrics/time_series.json", time_series)
     
     async def get_multi_series_metrics(
         self,
@@ -227,32 +331,8 @@ class MetricsService:
         return await self.firestore.get_cta_distribution()
     
     async def get_quality_distribution(self) -> Dict[str, int]:
-        """Get quality score distribution in buckets."""
-        assets, _ = await self.firestore.get_assets(page_size=1000)
-        
-        buckets = {
-            "0.0-0.5": 0,
-            "0.5-0.7": 0,
-            "0.7-0.8": 0,
-            "0.8-0.9": 0,
-            "0.9-1.0": 0
-        }
-        
-        for asset in assets:
-            if asset.features and asset.features.quality_score:
-                score = asset.features.quality_score
-                if score < 0.5:
-                    buckets["0.0-0.5"] += 1
-                elif score < 0.7:
-                    buckets["0.5-0.7"] += 1
-                elif score < 0.8:
-                    buckets["0.7-0.8"] += 1
-                elif score < 0.9:
-                    buckets["0.8-0.9"] += 1
-                else:
-                    buckets["0.9-1.0"] += 1
-        
-        return buckets
+        """Get quality score distribution from Firestore service."""
+        return await self.firestore.get_quality_distribution()
 
 
 @lru_cache()
@@ -263,4 +343,3 @@ def get_metrics_service() -> MetricsService:
         get_firestore_service(),
         get_job_service()
     )
-

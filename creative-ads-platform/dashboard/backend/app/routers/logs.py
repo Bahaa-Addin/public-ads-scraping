@@ -1,82 +1,136 @@
 """
 Logs API Router
 
-Endpoints for log viewing and searching.
+Endpoints for log viewing, searching, and writing.
+In local mode, reads from local log files instead of Cloud Logging.
 """
 
-import random
+import json
+import os
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Optional, List
-from fastapi import APIRouter, Query, Depends
+from fastapi import APIRouter, Query, HTTPException
+from pydantic import BaseModel
 
-from ..models import LogEntry, LogLevel, LogSearchParams, LogSearchResponse
+from ..config import get_settings
+from ..models import LogEntry, LogLevel, LogSearchResponse
 
 router = APIRouter(prefix="/logs", tags=["Logs"])
 
 
-def _generate_mock_logs(count: int = 100) -> List[LogEntry]:
-    """Generate mock log entries for development."""
-    log_messages = {
-        LogLevel.INFO: [
-            "Scraped 25 assets from meta_ad_library",
-            "Feature extraction completed for asset-123",
-            "Reverse prompt generated successfully",
-            "Job completed in 5.2 seconds",
-            "Worker started processing job queue",
-            "Health check passed",
-            "Batch processing started with 50 items",
-        ],
-        LogLevel.WARNING: [
-            "Rate limit approaching for meta_ad_library",
-            "Slow response from Vertex AI (3.5s)",
-            "Queue backlog increasing",
-            "Retrying failed job (attempt 2/3)",
-            "Memory usage above 80%",
-        ],
-        LogLevel.ERROR: [
-            "Failed to scrape: Rate limit exceeded",
-            "Feature extraction timeout",
-            "Vertex AI API error: 503 Service Unavailable",
-            "Failed to store asset in Cloud Storage",
-            "Job moved to dead letter queue",
-        ],
-        LogLevel.DEBUG: [
-            "Processing job: scrape-abc123",
-            "Loaded image: 1024x768 pixels",
-            "Color extraction: found 5 dominant colors",
-            "CTA detected: 'Shop Now' at bottom",
-        ]
-    }
-    
-    sources = ["agent_brain", "scraper", "feature_extraction", "reverse_prompt", "storage", "job_queue"]
-    
+class LogWriteRequest(BaseModel):
+    """Request model for writing a log entry."""
+    level: LogLevel
+    message: str
+    source: str
+    job_id: Optional[str] = None
+    asset_id: Optional[str] = None
+    metadata: Optional[dict] = None
+
+
+def _get_log_path() -> Path:
+    """Get the path to the pipeline log file."""
+    settings = get_settings()
+    data_dir = settings.data_dir
+    if not os.path.isabs(data_dir):
+        # Relative to the backend app directory
+        backend_dir = Path(__file__).parent.parent.parent
+        data_dir = backend_dir / data_dir
+    return Path(data_dir) / "logs" / "pipeline.log"
+
+
+def _load_logs() -> List[LogEntry]:
+    """Load logs from the pipeline.log file (JSON lines format)."""
+    log_path = _get_log_path()
     logs = []
-    now = datetime.utcnow()
     
-    for i in range(count):
-        level = random.choices(
-            [LogLevel.INFO, LogLevel.WARNING, LogLevel.ERROR, LogLevel.DEBUG],
-            weights=[0.6, 0.2, 0.1, 0.1]
-        )[0]
-        
-        logs.append(LogEntry(
-            timestamp=now - timedelta(minutes=i * random.randint(1, 5)),
-            level=level,
-            message=random.choice(log_messages[level]),
-            source=random.choice(sources),
-            job_id=f"job-{random.randint(1, 50)}" if random.random() > 0.3 else None,
-            asset_id=f"asset-{random.randint(1, 100)}" if random.random() > 0.5 else None,
-            metadata={
-                "duration_ms": random.randint(100, 5000),
-                "worker_id": f"worker-{random.randint(0, 9)}"
-            } if random.random() > 0.7 else None
-        ))
+    if not log_path.exists():
+        return logs
+    
+    try:
+        with open(log_path, "r") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    data = json.loads(line)
+                    # Parse timestamp
+                    timestamp = data.get("timestamp")
+                    if isinstance(timestamp, str):
+                        timestamp = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+                    elif timestamp is None:
+                        timestamp = datetime.utcnow()
+                    
+                    # Parse level
+                    level_str = data.get("level", "info").upper()
+                    try:
+                        level = LogLevel(level_str.lower())
+                    except ValueError:
+                        level = LogLevel.INFO
+                    
+                    logs.append(LogEntry(
+                        timestamp=timestamp,
+                        level=level,
+                        message=data.get("message", ""),
+                        source=data.get("source", "unknown"),
+                        job_id=data.get("job_id"),
+                        asset_id=data.get("asset_id"),
+                        metadata=data.get("metadata")
+                    ))
+                except (json.JSONDecodeError, ValueError, KeyError) as e:
+                    # Skip malformed lines
+                    continue
+    except IOError as e:
+        pass
     
     return logs
 
 
-# Cache mock logs
-_mock_logs = _generate_mock_logs(500)
+def _write_log(entry: LogEntry):
+    """Write a log entry to the pipeline.log file."""
+    log_path = _get_log_path()
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    log_data = {
+        "timestamp": entry.timestamp.isoformat(),
+        "level": entry.level.value,
+        "message": entry.message,
+        "source": entry.source,
+    }
+    
+    if entry.job_id:
+        log_data["job_id"] = entry.job_id
+    if entry.asset_id:
+        log_data["asset_id"] = entry.asset_id
+    if entry.metadata:
+        log_data["metadata"] = entry.metadata
+    
+    with open(log_path, "a") as f:
+        f.write(json.dumps(log_data) + "\n")
+
+
+@router.post("/write")
+async def write_log(request: LogWriteRequest):
+    """
+    Write a log entry to the pipeline log.
+    
+    This endpoint is called by the agent and scrapers to log events.
+    """
+    entry = LogEntry(
+        timestamp=datetime.utcnow(),
+        level=request.level,
+        message=request.message,
+        source=request.source,
+        job_id=request.job_id,
+        asset_id=request.asset_id,
+        metadata=request.metadata
+    )
+    
+    _write_log(entry)
+    
+    return {"status": "ok", "timestamp": entry.timestamp.isoformat()}
 
 
 @router.get("", response_model=LogSearchResponse)
@@ -94,9 +148,9 @@ async def search_logs(
     """
     Search and filter logs.
     
-    In production, this would query Cloud Logging or a log aggregation service.
+    Reads from local pipeline.log file in JSON lines format.
     """
-    logs = _mock_logs.copy()
+    logs = _load_logs()
     
     # Apply filters
     if job_id:
@@ -169,7 +223,8 @@ async def get_error_logs(
     page_size: int = Query(default=50, ge=1, le=200)
 ):
     """Get only error and critical logs."""
-    logs = [l for l in _mock_logs if l.level in [LogLevel.ERROR, LogLevel.CRITICAL]]
+    logs = _load_logs()
+    logs = [l for l in logs if l.level in [LogLevel.ERROR, LogLevel.CRITICAL]]
     logs.sort(key=lambda x: x.timestamp, reverse=True)
     
     total = len(logs)
@@ -186,24 +241,39 @@ async def get_error_logs(
 @router.get("/sources")
 async def get_log_sources():
     """Get list of available log sources."""
-    sources = set(l.source for l in _mock_logs if l.source)
+    logs = _load_logs()
+    sources = set(l.source for l in logs if l.source)
     return {"sources": sorted(sources)}
 
 
 @router.get("/stats")
 async def get_log_stats():
     """Get log statistics."""
+    logs = _load_logs()
     level_counts = {}
     source_counts = {}
     
-    for log in _mock_logs:
+    for log in logs:
         level_counts[log.level.value] = level_counts.get(log.level.value, 0) + 1
         if log.source:
             source_counts[log.source] = source_counts.get(log.source, 0) + 1
     
     return {
-        "total_logs": len(_mock_logs),
+        "total_logs": len(logs),
         "by_level": level_counts,
         "by_source": source_counts
     }
 
+
+@router.delete("/clear")
+async def clear_logs():
+    """Clear all logs (development only)."""
+    settings = get_settings()
+    if settings.environment not in ["development", "local"]:
+        raise HTTPException(status_code=403, detail="Log clearing only allowed in development")
+    
+    log_path = _get_log_path()
+    if log_path.exists():
+        log_path.write_text("")
+    
+    return {"status": "ok", "message": "Logs cleared"}

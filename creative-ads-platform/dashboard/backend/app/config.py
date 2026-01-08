@@ -20,6 +20,10 @@ class Settings(BaseSettings):
     debug: bool = False
     environment: str = Field(default="development", alias="ENVIRONMENT")
     
+    # Local-first mode settings
+    mode: str = Field(default="local", alias="MODE")  # "local" or "cloud"
+    data_dir: str = Field(default="./data", alias="DATA_DIR")  # Path to local data files
+    
     # Server
     host: str = "0.0.0.0"
     port: int = 8000
