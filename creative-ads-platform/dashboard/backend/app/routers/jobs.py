@@ -5,9 +5,12 @@ Endpoints for job queue management, control, and action triggers.
 """
 
 import httpx
+import json
 import logging
-from typing import Optional, List
+from pathlib import Path
+from typing import Optional, List, Any, Dict
 from fastapi import APIRouter, HTTPException, Query, Depends, BackgroundTasks
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from ..config import get_settings
@@ -428,4 +431,61 @@ async def get_job_stats_by_status(
 ):
     """Get job counts grouped by status."""
     return await firestore.get_job_counts_by_status()
+
+
+# ==========================================================================
+# Screenshot Endpoints (for job replay)
+# ==========================================================================
+
+def _get_screenshots_path() -> Path:
+    """Get the screenshots directory path."""
+    settings = get_settings()
+    return Path(settings.data_dir) / "screenshots"
+
+
+@router.get("/with-screenshots", tags=["Screenshots"])
+async def get_jobs_with_screenshots():
+    """Get list of job IDs that have screenshots available."""
+    screenshots_path = _get_screenshots_path()
+    
+    if not screenshots_path.exists():
+        return {"jobs": [], "count": 0}
+    
+    jobs = []
+    for job_dir in screenshots_path.iterdir():
+        if job_dir.is_dir() and any(job_dir.glob("*.jpg")):
+            jobs.append(job_dir.name)
+    
+    return {"jobs": sorted(jobs), "count": len(jobs)}
+
+
+@router.get("/{job_id}/screenshots", tags=["Screenshots"])
+async def get_job_screenshots(job_id: str):
+    """Get list of screenshots for a job."""
+    screenshots_path = _get_screenshots_path() / job_id
+    
+    if not screenshots_path.exists():
+        return {"job_id": job_id, "count": 0, "screenshots": []}
+    
+    screenshots = []
+    for img_path in sorted(screenshots_path.glob("*.jpg")):
+        meta_path = img_path.parent / f"{img_path.name}.json"
+        
+        meta: Dict[str, Any] = {}
+        if meta_path.exists():
+            try:
+                meta = json.loads(meta_path.read_text())
+            except json.JSONDecodeError:
+                pass
+        
+        screenshots.append({
+            "filename": img_path.name,
+            "url": f"/api/v1/screenshots/{job_id}/{img_path.name}",
+            "timestamp": meta.get("timestamp"),
+            "page_url": meta.get("url"),
+            "action": meta.get("action"),
+            "step": meta.get("step"),
+        })
+    
+    return {"job_id": job_id, "count": len(screenshots), "screenshots": screenshots}
 

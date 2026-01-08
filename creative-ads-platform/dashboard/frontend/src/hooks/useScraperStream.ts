@@ -240,6 +240,9 @@ export function useScraperStream(
   }
 }
 
+// Dashboard API for fetching active scrapers
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+
 /**
  * Hook to get list of active scraper sessions
  */
@@ -251,7 +254,8 @@ export function useActiveScrapers(pollInterval = 5000) {
   useEffect(() => {
     const fetchActiveSessions = async () => {
       try {
-        const response = await fetch(`${AGENT_WS_URL.replace('ws', 'http')}/api/v1/scrapers/active`)
+        // Use dashboard backend which proxies to agent
+        const response = await fetch(`${API_URL}/api/v1/scrapers/active`)
         if (!response.ok) throw new Error('Failed to fetch active scrapers')
         const data = await response.json()
         setSessions(data.sessions || [])

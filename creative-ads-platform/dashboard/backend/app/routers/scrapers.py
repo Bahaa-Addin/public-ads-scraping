@@ -4,9 +4,12 @@ Scrapers API Router
 Endpoints for scraper monitoring and control.
 """
 
+import httpx
+import logging
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Depends
 
+from ..config import get_settings
 from ..models import (
     ScraperSource, ScraperStatus, ScraperMetrics,
     ScraperTriggerRequest, ScraperTriggerResponse, IndustryCategory
@@ -14,6 +17,7 @@ from ..models import (
 from ..services.job_service import JobService, get_job_service
 from ..services.metrics_service import MetricsService, get_metrics_service
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/scrapers", tags=["Scrapers"])
 
 
@@ -134,4 +138,28 @@ def _get_source_description(source: ScraperSource) -> str:
         ScraperSource.WIKIMEDIA_COMMONS: "Public domain creative assets from Wikimedia"
     }
     return descriptions.get(source, "No description available")
+
+
+@router.get("/active")
+async def get_active_scrapers():
+    """
+    Get list of active scraper streaming sessions.
+    
+    Proxies to the agent API to get currently running scraper sessions
+    that are streaming video.
+    """
+    settings = get_settings()
+    agent_url = getattr(settings, 'agent_api_url', None) or 'http://localhost:8080'
+    
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.get(f"{agent_url}/api/v1/scrapers/active")
+            if response.status_code == 200:
+                return response.json()
+            else:
+                logger.warning(f"Agent returned status {response.status_code}")
+                return {"sessions": []}
+    except httpx.RequestError as e:
+        logger.debug(f"Could not connect to agent API: {e}")
+        return {"sessions": []}
 

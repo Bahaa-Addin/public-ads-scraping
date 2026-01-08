@@ -23,7 +23,8 @@ from .routers import (
     scrapers_router,
     logs_router,
     health_router,
-    events_router
+    events_router,
+    screenshots_router,
 )
 
 # Configure logging
@@ -150,6 +151,7 @@ app.include_router(metrics_router, prefix="/api/v1")
 app.include_router(scrapers_router, prefix="/api/v1")
 app.include_router(logs_router, prefix="/api/v1")
 app.include_router(events_router, prefix="/api/v1")
+app.include_router(screenshots_router, prefix="/api/v1")
 
 
 # Prometheus metrics endpoint

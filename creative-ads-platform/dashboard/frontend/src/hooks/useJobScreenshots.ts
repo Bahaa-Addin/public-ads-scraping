@@ -6,8 +6,8 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
-// Default to agent API port
-const AGENT_API_URL = import.meta.env.VITE_AGENT_API_URL || 'http://localhost:8080'
+// Use dashboard API (will proxy to agent if needed)
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
 export interface Screenshot {
   filename: string
@@ -38,7 +38,7 @@ interface StorageResponse {
  * Fetch screenshots for a specific job
  */
 async function fetchJobScreenshots(jobId: string): Promise<JobScreenshotsResponse> {
-  const response = await fetch(`${AGENT_API_URL}/api/v1/jobs/${jobId}/screenshots`)
+  const response = await fetch(`${API_URL}/api/v1/jobs/${jobId}/screenshots`)
   if (!response.ok) {
     throw new Error(`Failed to fetch screenshots for job ${jobId}`)
   }
@@ -49,7 +49,7 @@ async function fetchJobScreenshots(jobId: string): Promise<JobScreenshotsRespons
  * Fetch list of jobs that have screenshots
  */
 async function fetchJobsWithScreenshots(): Promise<JobsWithScreenshotsResponse> {
-  const response = await fetch(`${AGENT_API_URL}/api/v1/jobs/with-screenshots`)
+  const response = await fetch(`${API_URL}/api/v1/jobs/with-screenshots`)
   if (!response.ok) {
     throw new Error('Failed to fetch jobs with screenshots')
   }
@@ -60,7 +60,7 @@ async function fetchJobsWithScreenshots(): Promise<JobsWithScreenshotsResponse> 
  * Fetch screenshot storage usage
  */
 async function fetchStorageUsage(): Promise<StorageResponse> {
-  const response = await fetch(`${AGENT_API_URL}/api/v1/screenshots/storage`)
+  const response = await fetch(`${API_URL}/api/v1/screenshots/storage`)
   if (!response.ok) {
     throw new Error('Failed to fetch storage usage')
   }
@@ -71,7 +71,7 @@ async function fetchStorageUsage(): Promise<StorageResponse> {
  * Delete screenshots for a job
  */
 async function deleteJobScreenshots(jobId: string): Promise<void> {
-  const response = await fetch(`${AGENT_API_URL}/api/v1/jobs/${jobId}/screenshots`, {
+  const response = await fetch(`${API_URL}/api/v1/jobs/${jobId}/screenshots`, {
     method: 'DELETE',
   })
   if (!response.ok) {
@@ -134,7 +134,7 @@ export function useDeleteJobScreenshots() {
  * Build full URL for a screenshot
  */
 export function getScreenshotUrl(jobId: string, filename: string): string {
-  return `${AGENT_API_URL}/api/v1/screenshots/${jobId}/${filename}`
+  return `${API_URL}/api/v1/screenshots/${jobId}/${filename}`
 }
 
 /**
