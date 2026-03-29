@@ -1,8 +1,8 @@
-# Public Ads Platform
+# Public Ads Scraper
 
 Public Ads Platform is a local-first, cloud-optional system for collecting public advertising creatives, extracting structured features, classifying industries, and generating reusable reverse prompts.
 
-The repository brings together browser automation, Python orchestration, dashboard monitoring, validation workflows, and deployment infrastructure in a single project. The primary application source lives in [`platform/`](./platform/README.md); this root document serves as the official repository overview and documentation index.
+This repository combines browser automation, Python orchestration, frontend monitoring, validation workflows, and deployment infrastructure in a single project. The application source lives under `platform/`, but this root README is the canonical documentation entry point for the repository.
 
 ## Overview
 
@@ -31,33 +31,184 @@ The platform is designed to support an end-to-end workflow for public ad analysi
 - Observability: dashboard views, WebSocket streaming, screenshot capture, health checks, and metrics endpoints
 - Developer workflow: setup scripts, validation guides, manual testing procedures, and automated tests
 
-## Engineering Scope
+## Architecture Snapshot
 
-This repository covers substantially more than a standalone scraper. It includes:
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│                       Dashboard Frontend                        │
+│                    (React + Tailwind CSS)                       │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐            │
+│  │   Jobs   │ │  Assets  │ │Analytics │ │   Logs   │            │
+│  └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘            │
+└───────┼────────────┼────────────┼────────────┼──────────────────┘
+        │            │            │            │
+        └────────────┴─────┬──────┴────────────┘
+                           │
+┌──────────────────────────┼──────────────────────────────────────┐
+│                   Dashboard API (FastAPI)                       │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐            │
+│  │ /jobs/*  │ │/assets/* │ │/metrics/*│ │ /logs/*  │            │
+│  └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘            │
+└───────┼────────────┼────────────┼────────────┼──────────────────┘
+        │            │            │            │
+┌───────┴────────────┴────────────┴────────────┴──────────────────┐
+│                     Backend Services                            │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐           │
+│  │  Agent Brain │  │   Scrapers   │  │   Feature    │           │
+│  │   (Python)   │  │   (Node.js)  │  │  Extraction  │           │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘           │
+└─────────┼─────────────────┼─────────────────┼───────────────────┘
+          │                 │                 │
+┌─────────┴─────────────────┴─────────────────┴───────────────────┐
+│                        GCP Services                             │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐            │
+│  │Firestore │ │  Storage │ │ Pub/Sub  │ │Vertex AI │            │
+│  └──────────┘ └──────────┘ └──────────┘ └──────────┘            │
+└─────────────────────────────────────────────────────────────────┘
+```
+## High-Level System Components
 
-- browser automation and streaming capture for real-world scraping workflows
-- backend orchestration and API layers built around async Python services
-- frontend dashboard work for monitoring jobs, assets, metrics, and logs
-- deterministic local execution paths alongside optional cloud-integrated infrastructure
-- testing, validation, and documentation needed to operate the system with confidence
+```text
++------------------------------------------------------------------------------+
+| Frontend                                                                     |
+| Stack: React + TypeScript + Vite                                             |
+| Role: dashboard UI, controls, analytics, replay views                        |
++-----------------------------------+------------------------------------------+
+                                    |
+                                    v
++-----------------------------------+------------------------------------------+
+| Dashboard Backend                                                            |
+| Stack: FastAPI                                                               |
+| Role: UI-facing API, health checks, metrics, proxy layer                     |
++-----------------------------------+------------------------------------------+
+                                    |
+                                    v
++-----------------------------------+------------------------------------------+
+| Agent API + Orchestrator                                                      |
+| Stack: Python + FastAPI                                                      |
+| Role: job orchestration, mode detection, dependency injection                |
++-----------------------------------+------------------------------------------+
+                                    |
+                                    v
++-----------------------------------+------------------------------------------+
+| Interface Contracts                                                          |
+| StorageInterface | QueueInterface | LLMInterface | MonitoringInterface        |
++-----------------------------+---------------------+---------------------------+
+                              |                     |
+                              v                     v
+        +--------------------------------+   +--------------------------------+
+        | Local Adapters                 |   | Cloud Adapters                 |
+        | JSON + filesystem              |   | Firestore + Cloud Storage      |
+        | in-memory queue                |   | Pub/Sub + Vertex AI            |
+        | templates / Ollama             |   | cloud monitoring               |
+        +--------------------------------+   +--------------------------------+
+                              \                     /
+                               \                   /
+                                v                 v
++------------------------------------------------------------------------------+
+| Processing Pipeline                                                          |
+| Playwright collection -> feature extraction -> classification -> prompts     |
++-----------------------------------+------------------------------------------+
+                                    ^
+                                    |
++-----------------------------------+------------------------------------------+
+| Node.js Scraper Server                                                        |
+| Stack: Node.js + Playwright + WebSocket streaming                            |
+| Role: source scraping, browser control, live stream delivery                 |
++-----------------------------------+------------------------------------------+
+                                    |
+                                    v
++------------------------------------------------------------------------------+
+| Playwright Browser                                                           |
+| Role: public source collection, screenshot capture, live session frames      |
++------------------------------------------------------------------------------+
+```
 
-## Technology Stack
+The system is organized in layers:
 
-- Scraping and automation: Playwright, `playwright-extra`, stealth plugins, Node.js, WebSocket-based session streaming
-- Backend services: FastAPI, Uvicorn, Pydantic, async Python, local and cloud adapter patterns
-- Frontend: React, TypeScript, Vite, React Router, TanStack Query, Zustand, Recharts
-- Testing and quality: pytest, pytest-asyncio, Vitest, Playwright E2E, Ruff, Black, isort, mypy, ESLint, Prettier
-- Infrastructure: Docker, Docker Compose, Terraform, Firebase emulators, Firestore, Pub/Sub, Cloud Storage, Vertex AI
+- Frontend: React dashboard for monitoring, controls, analytics, and replay views
+- Dashboard backend: FastAPI layer that serves UI-facing data and system status
+- Agent orchestration: Python services that coordinate jobs and bind adapters based on `MODE`
+- Interfaces and adapters: storage, queue, LLM, and monitoring contracts with local and cloud implementations
+- Scraping runtime: Node.js scraper service plus Playwright browser automation and live streaming
+- Processing pipeline: feature extraction, industry classification, and reverse prompt generation
 
-## Repository Layout
+### Service Ports
 
-- [`platform/README.md`](./platform/README.md): main application overview, setup, modes, and deployment
-- [`platform/scrapers/package.json`](./platform/scrapers/package.json): scraper scripts and Node.js dependencies
-- [`platform/dashboard/README.md`](./platform/dashboard/README.md): dashboard architecture and deployment notes
-- [`platform/LOCAL_VALIDATION.md`](./platform/LOCAL_VALIDATION.md): local stack validation and service bring-up
-- [`platform/MANUAL_TESTING.md`](./platform/MANUAL_TESTING.md): guided manual verification flow
+| Service | Port | Purpose |
+|---------|------|---------|
+| Dashboard Frontend | `5173` | React UI |
+| Dashboard Backend | `8000` | API proxy and dashboard services |
+| Agent API | `8080` | Job orchestration |
+| Node.js Scraper | `3001` | Scraping and live streaming |
+
+## Operating Modes
+
+The platform supports two execution modes so the same codebase can serve both local development and cloud deployment.
+
+```mermaid
+flowchart LR
+    MODE[MODE environment variable]
+    MODE -->|unset or local| LOCAL[Local Mode]
+    MODE -->|cloud| CLOUD[Cloud Mode]
+
+    LOCAL --> L1[Zero cloud dependency]
+    LOCAL --> L2[Templates or Ollama]
+    LOCAL --> L3[Low-RAM friendly]
+
+    CLOUD --> C1[Managed GCP services]
+    CLOUD --> C2[Vertex AI prompts]
+    CLOUD --> C3[Production deployment path]
+```
+
+### Local Mode
+
+Local mode is the default. It is intended for development, validation, demos, and low-cost iteration.
+
+| Component | Implementation |
+|-----------|---------------|
+| Storage | JSON files in `./data/db/` |
+| Files | Local filesystem in `./data/assets/` |
+| Queue | In-memory |
+| LLM | Templates or optional Ollama |
+| Monitoring | Local logs and metrics files |
+
+### Cloud Mode
+
+Cloud mode enables managed infrastructure for production-style operation.
+
+| Component | Implementation |
+|-----------|---------------|
+| Storage | Cloud Firestore |
+| Files | Cloud Storage |
+| Queue | Cloud Pub/Sub |
+| LLM | Vertex AI |
+| Monitoring | Cloud Monitoring |
+
+### Vertex AI Restriction
+
+Vertex AI is cloud-only in this project. Local mode is designed to stay reproducible, low-cost, and offline-capable.
+
+```bash
+# Local mode
+MODE=local
+LLM_MODE=template
+
+# Cloud mode
+MODE=cloud
+GCP_PROJECT_ID=your-project-id
+```
 
 ## Quick Start
+
+### Prerequisites
+
+- Python 3.11+
+- Node.js 20+
+- Docker (optional)
+- Terraform 1.5+ for cloud provisioning
+
+### Local Setup
 
 ```bash
 cd platform
@@ -74,21 +225,144 @@ pytest tests/test_feature_extraction.py tests/test_reverse_prompt.py
 python main.py
 ```
 
-For full setup, architecture, dashboard, and deployment guidance, continue with [`platform/README.md`](./platform/README.md).
+### Minimal Local Configuration
+
+```bash
+MODE=local
+DATA_DIR=./data
+LLM_MODE=template
+MAX_BROWSER_INSTANCES=1
+SEQUENTIAL_SCRAPING=true
+GLOBAL_JOB_CAP=100
+LOG_LEVEL=INFO
+```
+
+## Dashboard
+
+The dashboard is the main operational interface for the platform. It covers:
+
+- job control and queue visibility
+- scraper status and trigger controls
+- asset review and prompt inspection
+- analytics and trend monitoring
+- logs, health checks, and administrative settings
+
+The screenshot gallery below was captured from the template-mode routes (`/template/*`) so the interface can be reviewed in stable mock-data states.
+
+### Landing Page
+
+![Landing page](./platform/dashboard/docs/screenshots/landing.png)
+
+The landing page introduces the platform, explains the pipeline stages, and links into the main dashboard surfaces.
+
+### Dashboard Overview
+
+![Dashboard overview](./platform/dashboard/docs/screenshots/template-dashboard.png)
+
+The overview page summarizes throughput, queue health, recent jobs, and industry distribution.
+
+### Pipeline Control
+
+![Pipeline control](./platform/dashboard/docs/screenshots/template-pipeline.png)
+
+The pipeline page is the execution surface for coordinating scrape, extract, classify, and prompt-generation flows.
+
+### Jobs
+
+![Jobs page](./platform/dashboard/docs/screenshots/template-jobs.png)
+
+The jobs page focuses on queue state, bulk job actions, and lifecycle monitoring.
+
+### Scrapers
+
+![Scrapers page](./platform/dashboard/docs/screenshots/template-scrapers.png)
+
+The scrapers page exposes source-level controls, runtime status, and performance monitoring.
+
+### Analytics
+
+![Analytics page](./platform/dashboard/docs/screenshots/template-analytics.png)
+
+The analytics page visualizes higher-level trends across throughput, quality, source mix, and CTA behavior.
+
+### Logs
+
+![Logs page](./platform/dashboard/docs/screenshots/template-logs.png)
+
+The logs page supports operational debugging with searchable, filterable application events.
+
+## Repository Structure
+
+```text
+platform/
+├── agent/                  # Python orchestration and adapters
+├── scrapers/               # Node.js Playwright scrapers
+├── feature_extraction/     # Feature extraction logic
+├── reverse_prompt/         # Reverse-prompt generation
+├── dashboard/              # Frontend, backend, and dashboard docs assets
+├── docs/                   # Architecture and design docs
+├── terraform/              # Cloud infrastructure
+├── docker/                 # Container definitions
+├── tests/                  # Test suites
+└── data/                   # Local runtime data and placeholders
+```
+
+## Local Resource Profile
+
+The platform is designed to run on constrained machines with conservative defaults.
+
+```bash
+MAX_BROWSER_INSTANCES=1
+SEQUENTIAL_SCRAPING=true
+GLOBAL_JOB_CAP=100
+MAX_QUEUE_SIZE=1000
+MAX_ASSETS_IN_MEMORY=50
+IMAGE_ONLY_MODE=true
+```
+
+Minimum guidance:
+
+- CPU: 2 cores
+- RAM: 2 GB minimum, 4 GB recommended
+- Disk: 10 GB free
+
+## Deployment
+
+### Docker
+
+```bash
+cd platform
+docker-compose up
+```
+
+Optional profiles:
+
+- `docker-compose --profile emulators up`
+- `docker-compose --profile ollama up`
+
+### Terraform
+
+```bash
+cd platform/terraform
+terraform init
+terraform plan -var="project_id=your-project-id"
+terraform apply -var="project_id=your-project-id"
+```
+
+Cloud deployment assumes GCP services such as Firestore, Pub/Sub, Cloud Storage, and Vertex AI are available and configured.
 
 ## Documentation Index
 
-Core project documentation:
+Core documentation:
 
-- Platform overview and main setup guide: [`platform/README.md`](./platform/README.md)
-- Local validation and service startup: [`platform/LOCAL_VALIDATION.md`](./platform/LOCAL_VALIDATION.md)
+- Local validation and service bring-up: [`platform/LOCAL_VALIDATION.md`](./platform/LOCAL_VALIDATION.md)
 - Manual testing walkthrough: [`platform/MANUAL_TESTING.md`](./platform/MANUAL_TESTING.md)
 - Local runtime data guidance: [`platform/data/README.md`](./platform/data/README.md)
 
 Dashboard documentation:
 
-- Dashboard overview, architecture, and deployment notes: [`platform/dashboard/README.md`](./platform/dashboard/README.md)
-- Dashboard usage guide: [`platform/dashboard/frontend/DASHBOARD_GUIDE.md`](./platform/dashboard/frontend/DASHBOARD_GUIDE.md)
+- Dashboard overview and screenshot walkthrough: [`platform/dashboard/README.md`](./platform/dashboard/README.md)
+- Dashboard user guide: [`platform/dashboard/frontend/DASHBOARD_GUIDE.md`](./platform/dashboard/frontend/DASHBOARD_GUIDE.md)
 
 Architecture documentation:
 
@@ -104,12 +378,7 @@ Contribution and governance:
 - Security policy: [`SECURITY.md`](./SECURITY.md)
 - License: [`LICENSE`](./LICENSE)
 
-## Responsible Use
-
-- Respect the terms of service, robots rules, rate limits, and legal requirements that apply to each public source.
-- Keep credentials, service-account files, and private datasets out of version control.
-- Review logs, fixtures, and exported data before publishing or sharing generated artifacts.
 
 ## Contributing
 
-Contributors should begin with [`CONTRIBUTING.md`](./CONTRIBUTING.md) and [`platform/README.md`](./platform/README.md). Changes that affect setup, runtime behavior, scraping workflows, or deployment paths should include corresponding documentation updates.
+Contributors should begin with [`CONTRIBUTING.md`](./CONTRIBUTING.md), then use the validation and testing docs to verify local changes. Changes that affect setup, runtime behavior, scraping workflows, dashboard behavior, or deployment paths should include corresponding documentation updates.
