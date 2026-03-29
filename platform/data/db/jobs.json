@@ -1,0 +1,411 @@
+[
+  {
+    "job_type": "scrape",
+    "payload": {
+      "sources": [
+        "meta_ad_library"
+      ],
+      "query": "test",
+      "limit": 3
+    },
+    "status": "completed",
+    "assets_processed": 0,
+    "retry_count": 0,
+    "id": "49e5a811-a7a1-4775-9a30-74bce2292758",
+    "created_at": "2026-01-09T17:07:18.287261",
+    "updated_at": "2026-01-09T17:07:48.903468",
+    "started_at": "2026-01-09T17:07:18.621473",
+    "completed_at": "2026-01-09T17:07:48.903476"
+  },
+  {
+    "job_type": "scrape",
+    "payload": {
+      "sources": [
+        "meta_ad_library"
+      ],
+      "query": "test",
+      "limit": 5
+    },
+    "status": "completed",
+    "assets_processed": 0,
+    "retry_count": 0,
+    "id": "6d302527-4e05-4073-ad24-d4fd92f0876b",
+    "created_at": "2026-01-09T17:06:43.420031",
+    "updated_at": "2026-01-09T17:07:17.065161",
+    "started_at": "2026-01-09T17:06:43.514005",
+    "completed_at": "2026-01-09T17:07:17.065169"
+  },
+  {
+    "job_type": "scrape",
+    "payload": {
+      "sources": [
+        "meta_ad_library"
+      ],
+      "query": "test",
+      "limit": 5
+    },
+    "status": "completed",
+    "assets_processed": 0,
+    "retry_count": 0,
+    "id": "08228f4a-de72-4c79-8849-cb51737954c5",
+    "created_at": "2026-01-09T17:06:09.448350",
+    "updated_at": "2026-01-09T17:06:39.385701",
+    "started_at": "2026-01-09T17:06:09.515516",
+    "completed_at": "2026-01-09T17:06:39.385722"
+  },
+  {
+    "job_type": "scrape",
+    "payload": {
+      "sources": [
+        "meta_ad_library"
+      ],
+      "query": "test",
+      "limit": 3
+    },
+    "status": "completed",
+    "assets_processed": 0,
+    "retry_count": 0,
+    "id": "f4e68ca9-6180-48bf-88a1-e4a25f9f1b4c",
+    "created_at": "2026-01-09T17:05:38.430312",
+    "updated_at": "2026-01-09T17:06:08.355426",
+    "started_at": "2026-01-09T17:05:38.446577",
+    "completed_at": "2026-01-09T17:06:08.355446"
+  },
+  {
+    "job_type": "full_pipeline",
+    "payload": {
+      "sources": [
+        "meta_ad_library"
+      ],
+      "query": "test",
+      "limit": 3,
+      "skip_steps": []
+    },
+    "status": "completed",
+    "assets_processed": 0,
+    "retry_count": 0,
+    "id": "616cd712-75be-4b26-89e2-e7b6d3c1fcc9",
+    "created_at": "2026-01-09T17:04:56.572943",
+    "updated_at": "2026-01-09T17:05:31.069915",
+    "started_at": "2026-01-09T17:04:56.876238",
+    "completed_at": "2026-01-09T17:05:31.069927"
+  },
+  {
+    "job_type": "scrape",
+    "payload": {
+      "sources": [
+        "meta_ad_library"
+      ],
+      "query": "monitor",
+      "limit": 3
+    },
+    "status": "completed",
+    "assets_processed": 0,
+    "retry_count": 0,
+    "id": "2c45ce36-db11-4269-a86b-fb05d704e6ae",
+    "created_at": "2026-01-09T17:04:22.108964",
+    "updated_at": "2026-01-09T17:04:55.513033",
+    "started_at": "2026-01-09T17:04:27.034355",
+    "completed_at": "2026-01-09T17:04:55.513049"
+  },
+  {
+    "job_type": "scrape",
+    "payload": {
+      "sources": [
+        "meta_ad_library"
+      ],
+      "query": null,
+      "limit": 50
+    },
+    "status": "completed",
+    "assets_processed": 0,
+    "retry_count": 0,
+    "id": "5682b15b-6c3c-4c09-96f3-d9b558779319",
+    "created_at": "2026-01-09T17:03:30.599014",
+    "updated_at": "2026-01-09T17:04:49.686149",
+    "completed_at": "2026-01-09T17:04:49.686157"
+  },
+  {
+    "job_type": "scrape",
+    "payload": {
+      "sources": [
+        "meta_ad_library"
+      ],
+      "query": "concurrent-test-2",
+      "limit": 3
+    },
+    "status": "completed",
+    "assets_processed": 0,
+    "retry_count": 0,
+    "id": "9570d2e9-4ede-4f0a-898f-29bcb5876e17",
+    "created_at": "2026-01-09T17:02:59.164524",
+    "updated_at": "2026-01-09T17:04:39.919509",
+    "started_at": "2026-01-09T17:03:10.108681",
+    "completed_at": "2026-01-09T17:04:39.919518"
+  },
+  {
+    "job_type": "scrape",
+    "payload": {
+      "sources": [
+        "meta_ad_library"
+      ],
+      "query": "concurrent-test-1",
+      "limit": 3
+    },
+    "status": "completed",
+    "assets_processed": 0,
+    "retry_count": 0,
+    "id": "ed7d34da-3e67-4d22-8763-bf3269b17d84",
+    "created_at": "2026-01-09T17:02:59.143531",
+    "updated_at": "2026-01-09T17:04:38.312363",
+    "started_at": "2026-01-09T17:03:07.732175",
+    "completed_at": "2026-01-09T17:04:38.312378"
+  },
+  {
+    "job_type": "scrape",
+    "payload": {
+      "sources": [
+        "meta_ad_library"
+      ],
+      "query": "concurrent-test-0",
+      "limit": 3
+    },
+    "status": "completed",
+    "assets_processed": 0,
+    "retry_count": 0,
+    "id": "3b8412a2-cb64-493d-9905-e382dbe0f497",
+    "created_at": "2026-01-09T17:02:59.094889",
+    "updated_at": "2026-01-09T17:04:30.842632",
+    "started_at": "2026-01-09T17:03:05.591864",
+    "completed_at": "2026-01-09T17:04:30.842645"
+  },
+  {
+    "job_type": "scrape",
+    "payload": {
+      "sources": [
+        "meta_ad_library"
+      ],
+      "query": null,
+      "limit": 50
+    },
+    "status": "completed",
+    "assets_processed": 0,
+    "retry_count": 0,
+    "id": "2ca888f0-528c-4e24-b650-3c901dfd8dfc",
+    "created_at": "2026-01-09T17:02:57.347124",
+    "updated_at": "2026-01-09T17:04:29.355364",
+    "completed_at": "2026-01-09T17:04:29.355378"
+  },
+  {
+    "job_type": "scrape",
+    "payload": {
+      "sources": [
+        "meta_ad_library"
+      ],
+      "query": null,
+      "limit": 50
+    },
+    "status": "completed",
+    "assets_processed": 0,
+    "retry_count": 0,
+    "id": "9f681178-5a95-41ab-b567-79fd9c4915bc",
+    "created_at": "2026-01-09T17:02:56.178527",
+    "updated_at": "2026-01-09T17:04:26.712740",
+    "completed_at": "2026-01-09T17:04:26.712749"
+  },
+  {
+    "job_type": "scrape",
+    "payload": {
+      "sources": [
+        "meta_ad_library"
+      ],
+      "query": null,
+      "limit": 50
+    },
+    "status": "completed",
+    "assets_processed": 0,
+    "retry_count": 0,
+    "id": "e912d5d0-1b54-4f03-99eb-949a19041be2",
+    "created_at": "2026-01-09T17:02:55.569465",
+    "updated_at": "2026-01-09T17:04:27.972232",
+    "completed_at": "2026-01-09T17:04:27.972241"
+  },
+  {
+    "job_type": "scrape",
+    "payload": {
+      "sources": [
+        "meta_ad_library"
+      ],
+      "query": null,
+      "limit": 50
+    },
+    "status": "completed",
+    "assets_processed": 0,
+    "retry_count": 0,
+    "id": "23ceaf05-c4dd-481a-8f62-1dfa38329140",
+    "created_at": "2026-01-09T17:02:55.473782",
+    "updated_at": "2026-01-09T17:04:25.856993",
+    "completed_at": "2026-01-09T17:04:25.857036"
+  },
+  {
+    "job_type": "scrape",
+    "payload": {
+      "sources": [
+        "meta_ad_library"
+      ],
+      "query": null,
+      "limit": 50
+    },
+    "status": "completed",
+    "assets_processed": 0,
+    "retry_count": 0,
+    "id": "210c18af-66a0-4e5e-bf4b-dbf40c3b70d9",
+    "created_at": "2026-01-09T17:02:55.307164",
+    "updated_at": "2026-01-09T17:04:26.343074",
+    "started_at": "2026-01-09T17:02:55.327751",
+    "completed_at": "2026-01-09T17:04:26.343084"
+  },
+  {
+    "job_type": "scrape",
+    "payload": {
+      "sources": [
+        "meta_ad_library"
+      ],
+      "query": null,
+      "limit": 50
+    },
+    "status": "completed",
+    "assets_processed": 0,
+    "retry_count": 0,
+    "id": "6f79a215-6754-459e-b427-890128a27c57",
+    "created_at": "2026-01-09T17:02:55.224749",
+    "updated_at": "2026-01-09T17:04:26.640229",
+    "completed_at": "2026-01-09T17:04:26.640236"
+  },
+  {
+    "id": "stats-pending-1",
+    "job_type": "scrape",
+    "status": "pending",
+    "payload": {
+      "sources": [
+        "meta_ad_library"
+      ],
+      "query": "test",
+      "limit": 10
+    },
+    "assets_processed": 0,
+    "retry_count": 0,
+    "error_message": null,
+    "created_at": "2026-01-09T17:02:55.176837",
+    "started_at": null,
+    "completed_at": null
+  },
+  {
+    "id": "stats-pending-2",
+    "job_type": "scrape",
+    "status": "pending",
+    "payload": {
+      "sources": [
+        "meta_ad_library"
+      ],
+      "query": "test",
+      "limit": 10
+    },
+    "assets_processed": 0,
+    "retry_count": 0,
+    "error_message": null,
+    "created_at": "2026-01-09T17:02:55.176847",
+    "started_at": null,
+    "completed_at": null
+  },
+  {
+    "id": "stats-in-progress-1",
+    "job_type": "scrape",
+    "status": "in_progress",
+    "payload": {
+      "sources": [
+        "meta_ad_library"
+      ],
+      "query": "test",
+      "limit": 10
+    },
+    "assets_processed": 0,
+    "retry_count": 0,
+    "error_message": null,
+    "created_at": "2026-01-09T17:02:55.176849",
+    "started_at": null,
+    "completed_at": null
+  },
+  {
+    "id": "stats-completed-1",
+    "job_type": "scrape",
+    "status": "completed",
+    "payload": {
+      "sources": [
+        "meta_ad_library"
+      ],
+      "query": "test",
+      "limit": 10
+    },
+    "assets_processed": 0,
+    "retry_count": 0,
+    "error_message": null,
+    "created_at": "2026-01-09T17:02:55.176852",
+    "started_at": null,
+    "completed_at": null
+  },
+  {
+    "id": "stats-completed-2",
+    "job_type": "scrape",
+    "status": "completed",
+    "payload": {
+      "sources": [
+        "meta_ad_library"
+      ],
+      "query": "test",
+      "limit": 10
+    },
+    "assets_processed": 0,
+    "retry_count": 0,
+    "error_message": null,
+    "created_at": "2026-01-09T17:02:55.176854",
+    "started_at": null,
+    "completed_at": null
+  },
+  {
+    "id": "stats-completed-3",
+    "job_type": "scrape",
+    "status": "completed",
+    "payload": {
+      "sources": [
+        "meta_ad_library"
+      ],
+      "query": "test",
+      "limit": 10
+    },
+    "assets_processed": 0,
+    "retry_count": 0,
+    "error_message": null,
+    "created_at": "2026-01-09T17:02:55.176856",
+    "started_at": null,
+    "completed_at": null
+  },
+  {
+    "id": "stats-failed-1",
+    "job_type": "scrape",
+    "status": "failed",
+    "payload": {
+      "sources": [
+        "meta_ad_library"
+      ],
+      "query": "test",
+      "limit": 10
+    },
+    "assets_processed": 0,
+    "retry_count": 0,
+    "error_message": null,
+    "created_at": "2026-01-09T17:02:55.176858",
+    "started_at": null,
+    "completed_at": null
+  }
+]

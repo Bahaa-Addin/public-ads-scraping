@@ -1,0 +1,10 @@
+{
+  "throughput": 0,
+  "latency": 0,
+  "error_rate": 0,
+  "uptime": 0,
+  "last_updated": "2026-01-09T17:07:48.898041",
+  "assets_scraped": 0,
+  "features_extracted": 0,
+  "prompts_generated": 0
+}

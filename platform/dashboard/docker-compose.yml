@@ -1,0 +1,130 @@
+# =============================================================================
+# Agentic Ads Dashboard - Docker Compose
+# =============================================================================
+# Local development environment
+
+version: '3.8'
+
+services:
+  # Dashboard API Backend
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - '8000:8000'
+    environment:
+      - ENVIRONMENT=development
+      - GCP_PROJECT_ID=${GCP_PROJECT_ID:-local-project}
+      - GCP_REGION=${GCP_REGION:-us-central1}
+      - FIRESTORE_COLLECTION_PREFIX=creative_ads
+      - PUBSUB_TOPIC=agentic-ads-jobs
+      - PUBSUB_SUBSCRIPTION=agentic-ads-jobs-sub
+      - AGENT_API_URL=http://agent:8080
+      - SCRAPER_API_URL=http://scraper:3001
+      - CORS_ORIGINS=http://localhost:5173,http://localhost:3000
+      - USE_EMULATOR=true
+      - FIRESTORE_EMULATOR_HOST=firestore:8080
+      - PUBSUB_EMULATOR_HOST=pubsub:8085
+      - LOG_LEVEL=DEBUG
+    volumes:
+      - ./backend/app:/app/app:ro
+    depends_on:
+      - firestore
+      - pubsub
+    networks:
+      - dashboard-network
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'python',
+          '-c',
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')"
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Dashboard Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=http://localhost:8000
+    ports:
+      - '80:80'
+    depends_on:
+      - api
+    networks:
+      - dashboard-network
+    healthcheck:
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:80/']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+  # Frontend Dev Server (alternative for hot reload)
+  frontend-dev:
+    image: node:20-alpine
+    working_dir: /app
+    ports:
+      - '5173:5173'
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    networks:
+      - dashboard-network
+    profiles:
+      - dev
+
+  # Firestore Emulator
+  firestore:
+    image: gcr.io/google.com/cloudsdktool/cloud-sdk:emulators
+    ports:
+      - '8080:8080'
+    command: gcloud emulators firestore start --host-port=0.0.0.0:8080
+    networks:
+      - dashboard-network
+
+  # Pub/Sub Emulator
+  pubsub:
+    image: gcr.io/google.com/cloudsdktool/cloud-sdk:emulators
+    ports:
+      - '8085:8085'
+    command: gcloud beta emulators pubsub start --host-port=0.0.0.0:8085
+    networks:
+      - dashboard-network
+
+  # Agent Service (mock for local dev)
+  agent:
+    image: python:3.11-slim
+    working_dir: /app
+    ports:
+      - '8081:8080'
+    volumes:
+      - ../agent:/app/agent:ro
+      - ../main.py:/app/main.py:ro
+    environment:
+      - ENVIRONMENT=development
+      - USE_EMULATOR=true
+      - FIRESTORE_EMULATOR_HOST=firestore:8080
+      - PUBSUB_EMULATOR_HOST=pubsub:8085
+    command: echo "Agent service placeholder - replace with actual agent"
+    networks:
+      - dashboard-network
+    profiles:
+      - full
+
+networks:
+  dashboard-network:
+    driver: bridge
+
+volumes:
+  node_modules:

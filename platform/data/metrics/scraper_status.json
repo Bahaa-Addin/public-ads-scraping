@@ -1,0 +1,13 @@
+[
+  {
+    "source": "meta_ad_library",
+    "enabled": true,
+    "running": false,
+    "items_scraped": 100,
+    "success_rate": 100.0,
+    "error_count": 0,
+    "run_count": 27,
+    "last_run": "2026-01-09T17:07:17.034274",
+    "success_count": 27
+  }
+]

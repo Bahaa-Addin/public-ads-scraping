@@ -1,4 +1,4 @@
-# Agentic Ads Scraping Platform - Git Ignore
+#  Agentic Ads Scraping Platform - Git Ignore
 
 # =============================================================================
 # Python
@@ -64,15 +64,12 @@ package-lock.json
 dist/
 build/
 out/
-orchestrator/dist/
 
 # =============================================================================
 # IDE and Editors
 # =============================================================================
-.cursor/
 .idea/
 .vscode/
-*.iml
 *.swp
 *.swo
 *~
@@ -96,16 +93,16 @@ Thumbs.db
 # =============================================================================
 # Terraform
 # =============================================================================
-**/.terraform/
-*.tfstate
-*.tfstate.*
-*.tfplan
-.terraform.lock.hcl
-crash.log
-override.tf
-override.tf.json
-*_override.tf
-*_override.tf.json
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/*.tfplan
+terraform/.terraform.lock.hcl
+terraform/crash.log
+terraform/override.tf
+terraform/override.tf.json
+terraform/*_override.tf
+terraform/*_override.tf.json
 
 # =============================================================================
 # Docker
@@ -124,8 +121,6 @@ platform.log
 # =============================================================================
 # Secrets and Credentials
 # =============================================================================
-.direnv/
-.envrc
 .env
 .env.local
 .env.*.local
@@ -142,9 +137,6 @@ secrets/
 coverage/
 .nyc_output/
 test-results/
-platform/tests/e2e/reports/
-.husky/_/
-.kilocode/worktrees/
 
 # =============================================================================
 # Build and Temporary
@@ -171,4 +163,10 @@ terraform-outputs.json
 # =============================================================================
 # Scraper Data (generated)
 # =============================================================================
-platform/scrapers/data/
+scrapers/data/
+
+# =============================================================================
+# Test Artifacts (generated)
+# =============================================================================
+tests/e2e/playwright/playwright-report/
+tests/e2e/reports/

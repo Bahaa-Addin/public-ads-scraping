@@ -1,0 +1,50 @@
+name: Quality Gates
+
+on:
+  pull_request:
+  push:
+    branches:
+      - develop
+      - staging
+      - main
+  workflow_dispatch:
+
+jobs:
+  quality-gates:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Bootstrap repository
+        run: bash ./scripts/bootstrap.sh --ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm run test
+
+      - name: Security scan
+        run: npm run security
+
+      - name: Build
+        run: npm run build
+
+      - name: Sync orchestrator state
+        run: |
+          npm run orchestrator:sync
+          npm run orchestrator:coverage

@@ -1,0 +1,38 @@
+{"timestamp": "2026-01-09T12:03:58.559376", "level": "info", "message": "Pipeline started for 1 source(s)", "source": "agent", "job_id": "026f239c-e436-4a3f-bfec-1bd1c1debf0a"}
+{"timestamp": "2026-01-09T12:04:31.120237", "level": "info", "message": "Pipeline completed in 32.6s with 0 assets", "source": "agent", "job_id": "026f239c-e436-4a3f-bfec-1bd1c1debf0a"}
+{"timestamp": "2026-01-09T12:23:39.818814", "level": "info", "message": "Pipeline started for 1 source(s)", "source": "agent", "job_id": "29fe45dc-5df6-41e6-86f5-e6ec494b6d52"}
+{"timestamp": "2026-01-09T12:24:08.325255", "level": "info", "message": "Pipeline completed in 28.5s with 0 assets", "source": "agent", "job_id": "29fe45dc-5df6-41e6-86f5-e6ec494b6d52"}
+{"timestamp": "2026-01-09T16:04:53.886846", "level": "info", "message": "Scraping completed: 0 items from 1 source(s)", "source": "agent", "job_id": "b6f75b43-06ef-49a6-b6c4-99ff446c8271"}
+{"timestamp": "2026-01-09T16:04:54.767112", "level": "info", "message": "Scraping completed: 0 items from 1 source(s)", "source": "agent", "job_id": "2a64f204-2b34-49b6-b286-737de7578a32"}
+{"timestamp": "2026-01-09T16:04:54.794183", "level": "info", "message": "Scraping completed: 0 items from 1 source(s)", "source": "agent", "job_id": "58b843a5-a5e1-44d0-8598-1cfac8093477"}
+{"timestamp": "2026-01-09T16:04:54.797640", "level": "info", "message": "Scraping completed: 0 items from 1 source(s)", "source": "agent", "job_id": "2e8dee0e-956b-43e7-9b88-dd14c03808c2"}
+{"timestamp": "2026-01-09T16:06:35.518830", "level": "info", "message": "Log for job job-filter-abc-123 - entry 0", "source": "agent", "job_id": "job-filter-abc-123", "asset_id": null, "metadata": null}
+{"timestamp": "2026-01-09T16:06:35.518850", "level": "info", "message": "Log for job job-filter-abc-123 - entry 1", "source": "agent", "job_id": "job-filter-abc-123", "asset_id": null, "metadata": null}
+{"timestamp": "2026-01-09T16:06:35.518857", "level": "info", "message": "Log for job job-filter-abc-123 - entry 2", "source": "agent", "job_id": "job-filter-abc-123", "asset_id": null, "metadata": null}
+{"timestamp": "2026-01-09T16:07:06.026816", "level": "info", "message": "Scraping completed: 0 items from 1 source(s)", "source": "agent", "job_id": "a56e44f8-8b78-4ec0-a715-9823843b2027"}
+{"timestamp": "2026-01-09T16:07:39.963045", "level": "info", "message": "Scraping completed: 0 items from 1 source(s)", "source": "agent", "job_id": "6df7d000-c3d8-424e-bbf6-3f49b6bc64bd"}
+{"timestamp": "2026-01-09T16:08:20.754098", "level": "info", "message": "Scraping completed: 0 items from 1 source(s)", "source": "agent", "job_id": "ba2b5975-42b4-4f1f-b399-a8a70c24fb8b"}
+{"timestamp": "2026-01-09T16:08:53.359355", "level": "info", "message": "Scraping completed: 0 items from 1 source(s)", "source": "agent", "job_id": "fd7c4662-75d3-43f3-87b2-1e4db530d882"}
+{"timestamp": "2026-01-09T16:13:04.980920", "level": "info", "message": "Log for job job-filter-abc-123 - entry 0", "source": "agent", "job_id": "job-filter-abc-123", "asset_id": null, "metadata": null}
+{"timestamp": "2026-01-09T16:13:04.980948", "level": "info", "message": "Log for job job-filter-abc-123 - entry 1", "source": "agent", "job_id": "job-filter-abc-123", "asset_id": null, "metadata": null}
+{"timestamp": "2026-01-09T16:13:04.980956", "level": "info", "message": "Log for job job-filter-abc-123 - entry 2", "source": "agent", "job_id": "job-filter-abc-123", "asset_id": null, "metadata": null}
+{"timestamp": "2026-01-09T16:13:43.996563", "level": "info", "message": "Scraping completed: 0 items from 1 source(s)", "source": "agent", "job_id": "d32d8eed-44e2-415b-87f5-b13fbe3c4d26"}
+{"timestamp": "2026-01-09T16:14:14.188073", "level": "info", "message": "Scraping completed: 0 items from 1 source(s)", "source": "agent", "job_id": "cf33874e-f093-465c-9cb9-732e3585e398"}
+{"timestamp": "2026-01-09T16:14:46.865556", "level": "info", "message": "Scraping completed: 0 items from 1 source(s)", "source": "agent", "job_id": "c4ae3bfe-c682-48c9-b936-a453dc2da68a"}
+{"timestamp": "2026-01-09T16:15:16.931336", "level": "info", "message": "Scraping completed: 0 items from 1 source(s)", "source": "agent", "job_id": "22d572d3-0f00-43fb-8e10-6e244f5ddd7a"}
+{"timestamp": "2026-01-09T16:19:27.835455", "level": "info", "message": "Log for job job-filter-abc-123 - entry 0", "source": "agent", "job_id": "job-filter-abc-123", "asset_id": null, "metadata": null}
+{"timestamp": "2026-01-09T16:19:27.835483", "level": "info", "message": "Log for job job-filter-abc-123 - entry 1", "source": "agent", "job_id": "job-filter-abc-123", "asset_id": null, "metadata": null}
+{"timestamp": "2026-01-09T16:19:27.835490", "level": "info", "message": "Log for job job-filter-abc-123 - entry 2", "source": "agent", "job_id": "job-filter-abc-123", "asset_id": null, "metadata": null}
+{"timestamp": "2026-01-09T16:20:06.434579", "level": "info", "message": "Scraping completed: 0 items from 1 source(s)", "source": "agent", "job_id": "2fb29421-44f7-4e34-a84f-04637d9d5a9a"}
+{"timestamp": "2026-01-09T16:20:38.556791", "level": "info", "message": "Scraping completed: 0 items from 1 source(s)", "source": "agent", "job_id": "c27241f3-fb08-4a76-8daa-1ceecd4325dc"}
+{"timestamp": "2026-01-09T16:21:13.195094", "level": "info", "message": "Scraping completed: 0 items from 1 source(s)", "source": "agent", "job_id": "decd52db-3952-4507-ac5d-981ee4b97a8f"}
+{"timestamp": "2026-01-09T16:21:42.241807", "level": "info", "message": "Scraping completed: 0 items from 1 source(s)", "source": "agent", "job_id": "2a2305ae-33f1-4a32-a672-fb0444238a63"}
+{"timestamp": "2026-01-09T17:01:57.756721", "level": "info", "message": "Scraping completed: 0 items from 1 source(s)", "source": "agent", "job_id": "6738cfe2-ec2d-4a6f-b3d6-f9ecacf13819"}
+{"timestamp": "2026-01-09T17:02:24.720182", "level": "info", "message": "Scraping completed: 0 items from 1 source(s)", "source": "agent", "job_id": "1a14d405-0c05-43fa-b836-900770f29448"}
+{"timestamp": "2026-01-09T17:05:31.600052", "level": "info", "message": "Log for job job-filter-abc-123 - entry 0", "source": "agent", "job_id": "job-filter-abc-123", "asset_id": null, "metadata": null}
+{"timestamp": "2026-01-09T17:05:31.600073", "level": "info", "message": "Log for job job-filter-abc-123 - entry 1", "source": "agent", "job_id": "job-filter-abc-123", "asset_id": null, "metadata": null}
+{"timestamp": "2026-01-09T17:05:31.600080", "level": "info", "message": "Log for job job-filter-abc-123 - entry 2", "source": "agent", "job_id": "job-filter-abc-123", "asset_id": null, "metadata": null}
+{"timestamp": "2026-01-09T17:06:08.357146", "level": "info", "message": "Scraping completed: 0 items from 1 source(s)", "source": "agent", "job_id": "f4e68ca9-6180-48bf-88a1-e4a25f9f1b4c"}
+{"timestamp": "2026-01-09T17:06:39.389924", "level": "info", "message": "Scraping completed: 0 items from 1 source(s)", "source": "agent", "job_id": "08228f4a-de72-4c79-8849-cb51737954c5"}
+{"timestamp": "2026-01-09T17:07:17.074878", "level": "info", "message": "Scraping completed: 0 items from 1 source(s)", "source": "agent", "job_id": "6d302527-4e05-4073-ad24-d4fd92f0876b"}
+{"timestamp": "2026-01-09T17:07:48.905624", "level": "info", "message": "Scraping completed: 0 items from 1 source(s)", "source": "agent", "job_id": "49e5a811-a7a1-4775-9a30-74bce2292758"}

@@ -1,0 +1,160 @@
+# Docker Compose for Local Development
+#
+# This configuration runs everything locally WITHOUT any GCP dependencies.
+# Firebase Emulators are optional - the platform can run purely with local files.
+#
+# Usage:
+#   docker-compose up              # Start all services
+#   docker-compose up -d           # Start in background
+#   docker-compose logs -f         # Follow logs
+#   docker-compose down            # Stop all services
+#
+# The platform will run in LOCAL MODE by default (MODE=local)
+
+version: '3.8'
+
+services:
+  # ============================================================================
+  # Core Application Services
+  # ============================================================================
+
+  # Agent Brain - Python orchestration
+  agent:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.agent
+    environment:
+      - MODE=local
+      - DATA_DIR=/data
+      - LOG_LEVEL=INFO
+      - LLM_MODE=template
+      - MAX_CONCURRENT_JOBS=5
+      - DASHBOARD_PORT=8080
+      - API_PORT=8081
+    volumes:
+      - ./data:/data
+      - ./agent:/app/agent:ro
+      - ./reverse_prompt:/app/reverse_prompt:ro
+      - ./feature_extraction:/app/feature_extraction:ro
+    ports:
+      - '8081:8081'
+    depends_on:
+      - dashboard
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    networks:
+      - agentic-ads-network
+
+  # Scrapers - Node.js Playwright
+  scrapers:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.scrapers
+    environment:
+      - MODE=local
+      - HEADLESS=true
+      - MAX_BROWSER_INSTANCES=1
+      - SEQUENTIAL_SCRAPING=true
+      - MAX_ITEMS_PER_SCRAPE=50
+      - REQUEST_DELAY_MS=1000
+    volumes:
+      - ./data:/data
+      - ./scrapers:/app/scrapers:ro
+    deploy:
+      resources:
+        limits:
+          memory: 1G # Playwright needs more memory
+    networks:
+      - agentic-ads-network
+
+  # Dashboard - React/Vite frontend
+  dashboard:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.dashboard
+    environment:
+      - VITE_API_URL=http://localhost:8081
+      - VITE_MODE=local
+    ports:
+      - '8080:8080'
+    volumes:
+      - ./dashboard:/app/dashboard:ro
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    networks:
+      - agentic-ads-network
+
+  # ============================================================================
+  # Optional: Firebase Emulators
+  #
+  # These are OPTIONAL. The platform runs fine without them using local files.
+  # Enable if you want Firestore/Pub/Sub emulation for closer cloud parity.
+  # ============================================================================
+
+  firebase-emulator:
+    image: node:20-slim
+    profiles: ['emulators'] # Only runs with --profile emulators
+    working_dir: /app
+    command: >
+      sh -c "
+        npm install -g firebase-tools &&
+        firebase emulators:start --only firestore,pubsub --project demo-project
+      "
+    environment:
+      - FIRESTORE_EMULATOR_HOST=0.0.0.0:8086
+      - PUBSUB_EMULATOR_HOST=0.0.0.0:8085
+    ports:
+      - '8086:8086' # Firestore
+      - '8085:8085' # Pub/Sub
+      - '4000:4000' # Emulator UI
+    volumes:
+      - ./firebase.json:/app/firebase.json:ro
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    networks:
+      - agentic-ads-network
+
+  # ============================================================================
+  # Optional: Ollama for Local AI
+  #
+  # Enable if you want AI-powered prompt generation without cloud costs.
+  # Requires significant RAM (4GB+ recommended)
+  # ============================================================================
+
+  ollama:
+    image: ollama/ollama:latest
+    profiles: ['ollama'] # Only runs with --profile ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    ports:
+      - '11434:11434'
+    volumes:
+      - ollama-data:/root/.ollama
+    deploy:
+      resources:
+        limits:
+          memory: 8G # LLMs need significant memory
+    networks:
+      - agentic-ads-network
+
+# ============================================================================
+# Networks
+# ============================================================================
+
+networks:
+  agentic-ads-network:
+    driver: bridge
+
+# ============================================================================
+# Volumes
+# ============================================================================
+
+volumes:
+  ollama-data:
