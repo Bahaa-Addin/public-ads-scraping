@@ -4,6 +4,7 @@
 # Keep gitignore and gitkeep files
 !.gitignore
 !.gitkeep
+!README.md
 
 # Keep placeholder JSON files (empty structure)
 !db/

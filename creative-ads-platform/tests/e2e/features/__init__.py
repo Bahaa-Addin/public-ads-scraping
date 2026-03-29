@@ -1,1 +1,0 @@
-# BDD Feature Files Directory
