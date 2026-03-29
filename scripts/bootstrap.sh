@@ -28,7 +28,7 @@ require_cmd npm
 log_step "python3, node, and npm are available"
 
 log_section "Installing repo workflow tooling"
-(cd "$REPO_ROOT" && npm install)
+install_npm_dependencies "$REPO_ROOT"
 log_step "Installed root workflow dependencies"
 
 log_section "Preparing platform runtime"
@@ -70,14 +70,14 @@ fi
 log_step "Installed shared Python dependencies"
 
 log_section "Installing Node.js dependencies"
-(cd "$SCRAPERS_DIR" && npm ci)
+install_npm_dependencies "$SCRAPERS_DIR"
 log_step "Installed scraper dependencies"
 
-(cd "$FRONTEND_DIR" && npm install --no-package-lock)
+install_npm_dependencies "$FRONTEND_DIR"
 log_step "Installed dashboard frontend dependencies"
 
 if [ "$WITH_E2E" -eq 1 ] || [ "$CI_MODE" -eq 1 ]; then
-  (cd "$PLAYWRIGHT_DIR" && npm install --no-package-lock)
+  install_npm_dependencies "$PLAYWRIGHT_DIR"
   log_step "Installed Playwright runner dependencies"
 fi
 

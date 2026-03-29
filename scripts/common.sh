@@ -69,3 +69,15 @@ run_npm_script() {
   shift 2
   (cd "$dir" && npm run "$script" -- "$@")
 }
+
+install_npm_dependencies() {
+  local dir="$1"
+  shift || true
+
+  if [ -f "$dir/package-lock.json" ] || [ -f "$dir/npm-shrinkwrap.json" ]; then
+    (cd "$dir" && npm ci "$@")
+    return
+  fi
+
+  (cd "$dir" && npm install "$@")
+}
