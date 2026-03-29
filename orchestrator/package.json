@@ -1,0 +1,25 @@
+{
+  "name": "@public-ads/orchestrator",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Lightweight task sync and coverage tooling for Public Ads Platform",
+  "main": "dist/index.js",
+  "bin": {
+    "public-ads-orchestrator": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "status": "node dist/index.js --status",
+    "coverage": "node dist/index.js --coverage",
+    "sync": "node dist/index.js --sync"
+  },
+  "devDependencies": {
+    "@types/node": "^24.5.2",
+    "typescript": "^5.9.2"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

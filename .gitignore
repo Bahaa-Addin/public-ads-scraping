@@ -64,6 +64,7 @@ package-lock.json
 dist/
 build/
 out/
+orchestrator/dist/
 
 # =============================================================================
 # IDE and Editors
@@ -142,6 +143,8 @@ coverage/
 .nyc_output/
 test-results/
 platform/tests/e2e/reports/
+.husky/_/
+.kilocode/worktrees/
 
 # =============================================================================
 # Build and Temporary

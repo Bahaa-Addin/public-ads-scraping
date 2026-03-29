@@ -1,0 +1,342 @@
+{
+  "version": "1.0.0",
+  "project": "Public Ads Platform",
+  "mode": "FULL",
+  "lastUpdated": "2026-03-29T10:26:20Z",
+  "overallProgress": {
+    "totalTasks": 17,
+    "completedTasks": 10,
+    "inProgressTasks": 0,
+    "blockedTasks": 0,
+    "percentage": 59
+  },
+  "verification": {
+    "lastRunAt": "2026-03-29T10:26:20Z",
+    "checks": [
+      {
+        "id": "repo-lint",
+        "status": "PASSED",
+        "details": "Passed via npm run lint"
+      },
+      {
+        "id": "repo-typecheck",
+        "status": "PASSED",
+        "details": "Passed via npm run typecheck"
+      },
+      {
+        "id": "repo-test",
+        "status": "PASSED",
+        "details": "Passed via npm run test"
+      },
+      {
+        "id": "repo-security",
+        "status": "PASSED",
+        "details": "Passed via npm run security"
+      },
+      {
+        "id": "repo-build",
+        "status": "PASSED",
+        "details": "Passed via npm run build"
+      }
+    ]
+  },
+  "phases": [
+    {
+      "id": "phase-1",
+      "name": "Workflow Foundation",
+      "status": "completed",
+      "progress": {
+        "totalTasks": 3,
+        "completedTasks": 3,
+        "inProgressTasks": 0,
+        "blockedTasks": 0,
+        "percentage": 100
+      },
+      "tasks": [
+        {
+          "id": "1.1.1",
+          "title": "Canonical bootstrap and env contract",
+          "status": "completed",
+          "priority": "critical",
+          "estimatedDuration": "0.5 days",
+          "dependencies": [],
+          "files": [".env.example", "LOCAL_BOOTSTRAP.md", "scripts/bootstrap.sh"],
+          "requirements": ["FR-1.1", "FR-1.2", "FR-1.3", "NFR-1.1", "NFR-1.2"]
+        },
+        {
+          "id": "1.1.2",
+          "title": "Root quality gates and shared config",
+          "status": "completed",
+          "priority": "critical",
+          "estimatedDuration": "1 day",
+          "dependencies": ["1.1.1"],
+          "files": [
+            "package.json",
+            ".editorconfig",
+            ".prettierrc.json",
+            ".eslintrc.cjs",
+            "scripts/lint.sh",
+            "scripts/typecheck.sh",
+            "scripts/test.sh",
+            "scripts/security-scan.sh",
+            "scripts/build.sh"
+          ],
+          "requirements": ["FR-5.1", "NFR-2.1", "NFR-2.2", "NFR-3.1"]
+        },
+        {
+          "id": "1.1.3",
+          "title": "Practical contributor guardrails",
+          "status": "completed",
+          "priority": "high",
+          "estimatedDuration": "0.5 days",
+          "dependencies": ["1.1.2"],
+          "files": [
+            ".husky/pre-commit",
+            "CONTRIBUTING.md",
+            "docs/COMMIT_MESSAGES.md",
+            "docs/developer-onboarding/workflows.md"
+          ],
+          "requirements": ["FR-5.2", "FR-5.4", "NFR-3.3"]
+        }
+      ]
+    },
+    {
+      "id": "phase-2",
+      "name": "Planning and State Tracking",
+      "status": "completed",
+      "progress": {
+        "totalTasks": 3,
+        "completedTasks": 3,
+        "inProgressTasks": 0,
+        "blockedTasks": 0,
+        "percentage": 100
+      },
+      "tasks": [
+        {
+          "id": "2.1.1",
+          "title": "System definition and execution plan",
+          "status": "completed",
+          "priority": "critical",
+          "estimatedDuration": "0.5 days",
+          "dependencies": ["1.1.1"],
+          "files": ["SPEC.md", "AGENTS.md"],
+          "requirements": ["FR-1.3", "NFR-1.3", "NFR-3.2"]
+        },
+        {
+          "id": "2.1.2",
+          "title": "Granular task registry and machine state",
+          "status": "completed",
+          "priority": "critical",
+          "estimatedDuration": "0.5 days",
+          "dependencies": ["2.1.1"],
+          "files": ["TASKS.md", "STATE.json"],
+          "requirements": ["NFR-1.3", "NFR-3.2"]
+        },
+        {
+          "id": "2.1.3",
+          "title": "Lightweight orchestrator and worktree bootstrap",
+          "status": "completed",
+          "priority": "high",
+          "estimatedDuration": "1 day",
+          "dependencies": ["2.1.2"],
+          "files": [
+            "orchestrator/package.json",
+            "orchestrator/index.ts",
+            "orchestrator/planner.ts",
+            "orchestrator/specCoverage.ts",
+            "orchestrator/stateManager.ts",
+            "ORCHESTRATOR_STATE.json",
+            ".kilocode/setup-script"
+          ],
+          "requirements": ["FR-5.1", "NFR-3.2"]
+        }
+      ]
+    },
+    {
+      "id": "phase-3",
+      "name": "Scraping and Processing Runtime",
+      "status": "not_started",
+      "progress": {
+        "totalTasks": 4,
+        "completedTasks": 0,
+        "inProgressTasks": 0,
+        "blockedTasks": 0,
+        "percentage": 0
+      },
+      "tasks": [
+        {
+          "id": "3.1.1",
+          "title": "Scraper runtime contracts and source controls",
+          "status": "not_started",
+          "priority": "high",
+          "estimatedDuration": "1 day",
+          "dependencies": ["1.1.2"],
+          "files": [
+            "platform/scrapers/package.json",
+            "platform/scrapers/scraper.js",
+            "platform/scrapers/server.js",
+            "platform/scrapers/limits.js"
+          ],
+          "requirements": ["FR-2.1", "FR-2.2", "FR-2.4"]
+        },
+        {
+          "id": "3.1.2",
+          "title": "Local/cloud adapter boundary validation",
+          "status": "not_started",
+          "priority": "critical",
+          "estimatedDuration": "1 day",
+          "dependencies": ["1.1.1"],
+          "files": [
+            "platform/agent/config.py",
+            "platform/agent/orchestrator.py",
+            "platform/agent/adapters/local",
+            "platform/agent/adapters/cloud",
+            "platform/env.example"
+          ],
+          "requirements": ["FR-1.1", "FR-1.2", "FR-1.4", "FR-2.3", "FR-3.4", "NFR-2.3"]
+        },
+        {
+          "id": "3.1.3",
+          "title": "Feature extraction and classification verification",
+          "status": "not_started",
+          "priority": "high",
+          "estimatedDuration": "0.5 days",
+          "dependencies": ["1.1.2", "3.1.2"],
+          "files": [
+            "platform/feature_extraction/extract_features.py",
+            "platform/tests/test_feature_extraction.py"
+          ],
+          "requirements": ["FR-3.1", "FR-3.2", "NFR-4.2"]
+        },
+        {
+          "id": "3.1.4",
+          "title": "Reverse prompt generation verification",
+          "status": "not_started",
+          "priority": "high",
+          "estimatedDuration": "0.5 days",
+          "dependencies": ["1.1.2", "3.1.2"],
+          "files": [
+            "platform/reverse_prompt/generate_prompt.py",
+            "platform/reverse_prompt/rules_engine.py",
+            "platform/tests/test_reverse_prompt.py"
+          ],
+          "requirements": ["FR-3.3", "FR-3.4", "NFR-2.3"]
+        }
+      ]
+    },
+    {
+      "id": "phase-4",
+      "name": "APIs and Dashboard Surfaces",
+      "status": "in_progress",
+      "progress": {
+        "totalTasks": 4,
+        "completedTasks": 1,
+        "inProgressTasks": 0,
+        "blockedTasks": 0,
+        "percentage": 25
+      },
+      "tasks": [
+        {
+          "id": "4.1.1",
+          "title": "Agent API health, queue, and job controls",
+          "status": "completed",
+          "priority": "high",
+          "estimatedDuration": "0.5 days",
+          "dependencies": ["3.1.2"],
+          "files": ["platform/agent/api.py", "platform/main.py"],
+          "requirements": ["FR-4.1", "FR-4.4", "NFR-4.1"]
+        },
+        {
+          "id": "4.1.2",
+          "title": "Dashboard backend service contracts",
+          "status": "not_started",
+          "priority": "high",
+          "estimatedDuration": "0.5 days",
+          "dependencies": ["4.1.1"],
+          "files": [
+            "platform/dashboard/backend/app/main.py",
+            "platform/dashboard/backend/app/routers",
+            "platform/dashboard/backend/app/services"
+          ],
+          "requirements": ["FR-4.2", "FR-4.4", "NFR-4.1"]
+        },
+        {
+          "id": "4.1.3",
+          "title": "Dashboard frontend quality and build surface",
+          "status": "not_started",
+          "priority": "high",
+          "estimatedDuration": "0.5 days",
+          "dependencies": ["1.1.2"],
+          "files": [
+            "platform/dashboard/frontend/package.json",
+            "platform/dashboard/frontend/src",
+            "platform/dashboard/frontend/vite.config.ts"
+          ],
+          "requirements": ["FR-4.3", "FR-5.1", "NFR-3.1"]
+        },
+        {
+          "id": "4.1.4",
+          "title": "Optional end-to-end validation entrypoints",
+          "status": "not_started",
+          "priority": "medium",
+          "estimatedDuration": "0.5 days",
+          "dependencies": ["4.1.1", "4.1.2", "4.1.3"],
+          "files": [
+            "platform/tests/e2e/run_e2e_tests.sh",
+            "platform/tests/e2e/playwright",
+            "platform/tests/e2e/pytest.ini"
+          ],
+          "requirements": ["FR-4.4", "NFR-4.2"]
+        }
+      ]
+    },
+    {
+      "id": "phase-5",
+      "name": "Delivery and Operations",
+      "status": "completed",
+      "progress": {
+        "totalTasks": 3,
+        "completedTasks": 3,
+        "inProgressTasks": 0,
+        "blockedTasks": 0,
+        "percentage": 100
+      },
+      "tasks": [
+        {
+          "id": "5.1.1",
+          "title": "Unified GitHub quality workflow",
+          "status": "completed",
+          "priority": "critical",
+          "estimatedDuration": "0.5 days",
+          "dependencies": ["1.1.2"],
+          "file": ".github/workflows/python-tests.yml",
+          "requirements": ["FR-5.3", "NFR-2.2", "NFR-3.3"]
+        },
+        {
+          "id": "5.1.2",
+          "title": "Deployment branch and release guidance",
+          "status": "completed",
+          "priority": "medium",
+          "estimatedDuration": "0.25 days",
+          "dependencies": ["1.1.3"],
+          "files": ["docs/developer-onboarding/workflows.md", "CONTRIBUTING.md", "README.md"],
+          "requirements": ["FR-5.4", "NFR-1.2"]
+        },
+        {
+          "id": "5.1.3",
+          "title": "Local validation and observability playbooks",
+          "status": "completed",
+          "priority": "medium",
+          "estimatedDuration": "0.5 days",
+          "dependencies": ["1.1.1", "1.1.3", "5.1.1"],
+          "files": [
+            "LOCAL_BOOTSTRAP.md",
+            "platform/LOCAL_VALIDATION.md",
+            "platform/MANUAL_TESTING.md"
+          ],
+          "requirements": ["FR-4.4", "NFR-4.1", "NFR-4.2"]
+        }
+      ]
+    }
+  ]
+}

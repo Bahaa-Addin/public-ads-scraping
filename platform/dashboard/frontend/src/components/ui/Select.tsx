@@ -1,16 +1,17 @@
-import { cn } from '@/lib/utils'
-import { SelectHTMLAttributes, forwardRef } from 'react'
+import { cn } from '@/lib/utils';
+import { forwardRef } from 'react';
+import type { SelectHTMLAttributes } from 'react';
 
 interface SelectOption {
-  value: string
-  label: string
+  value: string;
+  label: string;
 }
 
 interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
-  label?: string
-  options: SelectOption[]
-  placeholder?: string
-  error?: string
+  label?: string;
+  options: SelectOption[];
+  placeholder?: string;
+  error?: string;
 }
 
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(
@@ -18,9 +19,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
     return (
       <div className="w-full">
         {label && (
-          <label className="block text-sm font-medium text-surface-300 mb-1.5">
-            {label}
-          </label>
+          <label className="block text-sm font-medium text-surface-300 mb-1.5">{label}</label>
         )}
         <select
           ref={ref}
@@ -37,7 +36,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
             backgroundPosition: 'right 0.5rem center',
             backgroundRepeat: 'no-repeat',
             backgroundSize: '1.5em 1.5em',
-            paddingRight: '2.5rem',
+            paddingRight: '2.5rem'
           }}
           {...props}
         >
@@ -52,13 +51,10 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
             </option>
           ))}
         </select>
-        {error && (
-          <p className="mt-1.5 text-sm text-danger-500">{error}</p>
-        )}
+        {error && <p className="mt-1.5 text-sm text-danger-500">{error}</p>}
       </div>
-    )
+    );
   }
-)
+);
 
-Select.displayName = 'Select'
-
+Select.displayName = 'Select';

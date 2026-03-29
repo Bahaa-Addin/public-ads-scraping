@@ -1,16 +1,17 @@
-import { LucideIcon, Inbox } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { Inbox } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface EmptyStateProps {
-  icon?: LucideIcon
-  title: string
-  description?: string
+  icon?: LucideIcon;
+  title: string;
+  description?: string;
   action?: {
-    label: string
-    onClick: () => void
-  }
-  className?: string
-  size?: 'sm' | 'md' | 'lg'
+    label: string;
+    onClick: () => void;
+  };
+  className?: string;
+  size?: 'sm' | 'md' | 'lg';
 }
 
 export function EmptyState({
@@ -19,7 +20,7 @@ export function EmptyState({
   description,
   action,
   className,
-  size = 'md',
+  size = 'md'
 }: EmptyStateProps) {
   const sizes = {
     sm: {
@@ -27,29 +28,36 @@ export function EmptyState({
       iconWrapper: 'w-14 h-14',
       title: 'text-sm',
       description: 'text-xs',
-      padding: 'py-6',
+      padding: 'py-6'
     },
     md: {
       icon: 'w-10 h-10',
       iconWrapper: 'w-20 h-20',
       title: 'text-base',
       description: 'text-sm',
-      padding: 'py-12',
+      padding: 'py-12'
     },
     lg: {
       icon: 'w-12 h-12',
       iconWrapper: 'w-24 h-24',
       title: 'text-lg',
       description: 'text-base',
-      padding: 'py-16',
-    },
-  }
+      padding: 'py-16'
+    }
+  };
 
-  const s = sizes[size]
+  const s = sizes[size];
 
   return (
-    <div className={cn('flex flex-col items-center justify-center text-center', s.padding, className)}>
-      <div className={cn('rounded-full bg-surface-800/50 flex items-center justify-center mb-4', s.iconWrapper)}>
+    <div
+      className={cn('flex flex-col items-center justify-center text-center', s.padding, className)}
+    >
+      <div
+        className={cn(
+          'rounded-full bg-surface-800/50 flex items-center justify-center mb-4',
+          s.iconWrapper
+        )}
+      >
         <Icon className={cn('text-surface-500', s.icon)} />
       </div>
       <h3 className={cn('font-medium text-surface-300 mb-1', s.title)}>{title}</h3>
@@ -65,26 +73,31 @@ export function EmptyState({
         </button>
       )}
     </div>
-  )
+  );
 }
 
 // Quick variants for common empty states
-export function NoDataYet({ message = 'No data yet', description }: { message?: string; description?: string }) {
-  return <EmptyState title={message} description={description} size="sm" />
+export function NoDataYet({
+  message = 'No data yet',
+  description
+}: {
+  message?: string;
+  description?: string;
+}) {
+  return <EmptyState title={message} description={description} size="sm" />;
 }
 
-export function EmptyList({ 
+export function EmptyList({
   itemName = 'items',
-  description,
-}: { 
-  itemName?: string
-  description?: string
+  description
+}: {
+  itemName?: string;
+  description?: string;
 }) {
   return (
     <EmptyState
       title={`No ${itemName} found`}
       description={description || `There are no ${itemName} to display at this time.`}
     />
-  )
+  );
 }
-

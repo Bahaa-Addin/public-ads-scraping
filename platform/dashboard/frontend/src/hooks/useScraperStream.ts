@@ -1,69 +1,64 @@
 /**
  * useScraperStream - WebSocket hook for live scraper video streaming
- * 
+ *
  * Connects to the agent's WebSocket endpoint to receive real-time
  * video frames from an active scraper session.
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react';
 
-export type StreamStatus = 'connecting' | 'connected' | 'waiting' | 'live' | 'ended' | 'disconnected' | 'error'
-
-interface StreamFrame {
-  data: string  // Base64 JPEG data
-  timestamp: string
-  metadata?: {
-    deviceWidth?: number
-    deviceHeight?: number
-    pageScaleFactor?: number
-    scrollOffsetX?: number
-    scrollOffsetY?: number
-  }
-}
+export type StreamStatus =
+  | 'connecting'
+  | 'connected'
+  | 'waiting'
+  | 'live'
+  | 'ended'
+  | 'disconnected'
+  | 'error';
 
 interface SessionInfo {
-  session_id: string
-  job_id: string
-  source: string
-  started_at: string
-  frame_count: number
-  screenshot_count: number
-  current_url?: string
-  is_active: boolean
+  session_id: string;
+  job_id: string;
+  source: string;
+  started_at: string;
+  frame_count: number;
+  screenshot_count: number;
+  current_url?: string;
+  is_active: boolean;
 }
 
 interface UseScraperStreamOptions {
   /** Auto-reconnect on disconnect (default: true) */
-  autoReconnect?: boolean
+  autoReconnect?: boolean;
   /** Reconnection delay in ms (default: 2000) */
-  reconnectDelay?: number
+  reconnectDelay?: number;
   /** Max reconnection attempts (default: 5) */
-  maxReconnectAttempts?: number
+  maxReconnectAttempts?: number;
   /** Ping interval in ms to keep connection alive (default: 30000) */
-  pingInterval?: number
+  pingInterval?: number;
 }
 
 interface UseScraperStreamReturn {
   /** Current frame as data URL (data:image/jpeg;base64,...) */
-  frame: string | null
+  frame: string | null;
   /** Raw base64 frame data */
-  frameData: string | null
+  frameData: string | null;
   /** Connection status */
-  status: StreamStatus
+  status: StreamStatus;
   /** Session information */
-  sessionInfo: SessionInfo | null
+  sessionInfo: SessionInfo | null;
   /** Number of frames received */
-  frameCount: number
+  frameCount: number;
   /** Error message if any */
-  error: string | null
+  error: string | null;
   /** Manually disconnect */
-  disconnect: () => void
+  disconnect: () => void;
   /** Manually reconnect */
-  reconnect: () => void
+  reconnect: () => void;
 }
 
 // Node.js scraper WebSocket URL for live streaming
-const SCRAPER_WS_URL = import.meta.env.VITE_SCRAPER_WS_URL || 'ws://localhost:3001'
+const SCRAPER_WS_URL = import.meta.env.VITE_SCRAPER_WS_URL || 'ws://localhost:3001';
 
 export function useScraperStream(
   sessionId: string | null,
@@ -73,170 +68,173 @@ export function useScraperStream(
     autoReconnect = true,
     reconnectDelay = 2000,
     maxReconnectAttempts = 5,
-    pingInterval = 30000,
-  } = options
+    pingInterval = 30000
+  } = options;
 
-  const [frame, setFrame] = useState<string | null>(null)
-  const [frameData, setFrameData] = useState<string | null>(null)
-  const [status, setStatus] = useState<StreamStatus>('disconnected')
-  const [sessionInfo, setSessionInfo] = useState<SessionInfo | null>(null)
-  const [frameCount, setFrameCount] = useState(0)
-  const [error, setError] = useState<string | null>(null)
+  const [frame, setFrame] = useState<string | null>(null);
+  const [frameData, setFrameData] = useState<string | null>(null);
+  const [status, setStatus] = useState<StreamStatus>('disconnected');
+  const [sessionInfo, setSessionInfo] = useState<SessionInfo | null>(null);
+  const [frameCount, setFrameCount] = useState(0);
+  const [error, setError] = useState<string | null>(null);
 
-  const wsRef = useRef<WebSocket | null>(null)
-  const reconnectAttemptsRef = useRef(0)
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const pingIntervalRef = useRef<NodeJS.Timeout | null>(null)
-  const streamEndedRef = useRef(false) // Track if stream explicitly ended
+  const wsRef = useRef<WebSocket | null>(null);
+  const reconnectAttemptsRef = useRef(0);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const pingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const streamEndedRef = useRef(false); // Track if stream explicitly ended
 
   const cleanup = useCallback(() => {
     if (reconnectTimeoutRef.current) {
-      clearTimeout(reconnectTimeoutRef.current)
-      reconnectTimeoutRef.current = null
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
     }
     if (pingIntervalRef.current) {
-      clearInterval(pingIntervalRef.current)
-      pingIntervalRef.current = null
+      clearInterval(pingIntervalRef.current);
+      pingIntervalRef.current = null;
     }
     if (wsRef.current) {
-      wsRef.current.close()
-      wsRef.current = null
+      wsRef.current.close();
+      wsRef.current = null;
     }
-  }, [])
+  }, []);
 
   const connect = useCallback(() => {
     if (!sessionId) {
-      setStatus('disconnected')
-      return
+      setStatus('disconnected');
+      return;
     }
 
-    cleanup()
-    streamEndedRef.current = false // Reset on new connection
-    setStatus('connecting')
-    setError(null)
+    cleanup();
+    streamEndedRef.current = false; // Reset on new connection
+    setStatus('connecting');
+    setError(null);
 
     try {
       // Connect to Node.js scraper WebSocket with sessionId as query param
-      const ws = new WebSocket(`${SCRAPER_WS_URL}/ws/stream?sessionId=${sessionId}`)
-      wsRef.current = ws
+      const ws = new WebSocket(`${SCRAPER_WS_URL}/ws/stream?sessionId=${sessionId}`);
+      wsRef.current = ws;
 
       ws.onopen = () => {
-        setStatus('connected')
-        reconnectAttemptsRef.current = 0
-        
+        setStatus('connected');
+        reconnectAttemptsRef.current = 0;
+
         // Start ping interval to keep connection alive
         pingIntervalRef.current = setInterval(() => {
           if (ws.readyState === WebSocket.OPEN) {
-            ws.send('ping')
+            ws.send('ping');
           }
-        }, pingInterval)
-      }
+        }, pingInterval);
+      };
 
       ws.onmessage = (event) => {
         try {
-          const message = JSON.parse(event.data)
-          
+          const message = JSON.parse(event.data);
+
           switch (message.type) {
             case 'session_info':
-              setSessionInfo(message.session)
-              setStatus('live')
-              break
-              
+              setSessionInfo(message.session);
+              setStatus('live');
+              break;
+
             case 'waiting':
-              setStatus('waiting')
-              break
-              
+              setStatus('waiting');
+              break;
+
             case 'frame':
-              setFrameData(message.data)
-              setFrame(`data:image/jpeg;base64,${message.data}`)
-              setFrameCount(c => c + 1)
-              setStatus('live')
-              break
-              
+              setFrameData(message.data);
+              setFrame(`data:image/jpeg;base64,${message.data}`);
+              setFrameCount((c) => c + 1);
+              setStatus('live');
+              break;
+
             case 'stream_ended':
-              streamEndedRef.current = true // Mark stream as explicitly ended
-              setStatus('ended')
-              setSessionInfo(prev => prev ? { ...prev, is_active: false } : null)
-              break
-              
+              streamEndedRef.current = true; // Mark stream as explicitly ended
+              setStatus('ended');
+              setSessionInfo((prev) => (prev ? { ...prev, is_active: false } : null));
+              break;
+
             default:
               // Unknown message type
-              break
+              break;
           }
-        } catch (e) {
+        } catch {
           // Handle text messages (like pong)
           if (event.data === 'pong') {
             // Connection is alive
           }
         }
-      }
+      };
 
       ws.onerror = (event) => {
-        console.error('WebSocket error:', event)
-        setError('WebSocket connection error')
-        setStatus('error')
-      }
+        console.error('WebSocket error:', event);
+        setError('WebSocket connection error');
+        setStatus('error');
+      };
 
       ws.onclose = (event) => {
-        cleanup()
-        
+        cleanup();
+
         // Don't reconnect if stream explicitly ended
         if (streamEndedRef.current) {
-          setStatus('ended')
-          return
+          setStatus('ended');
+          return;
         }
-        
+
         if (event.code === 1000 || event.code === 1001) {
           // Normal closure
-          setStatus('disconnected')
+          setStatus('disconnected');
         } else if (autoReconnect && reconnectAttemptsRef.current < maxReconnectAttempts) {
           // Attempt reconnection
-          setStatus('connecting')
-          reconnectAttemptsRef.current++
-          
-          reconnectTimeoutRef.current = setTimeout(() => {
-            connect()
-          }, reconnectDelay * Math.pow(1.5, reconnectAttemptsRef.current - 1))
+          setStatus('connecting');
+          reconnectAttemptsRef.current++;
+
+          reconnectTimeoutRef.current = setTimeout(
+            () => {
+              connect();
+            },
+            reconnectDelay * Math.pow(1.5, reconnectAttemptsRef.current - 1)
+          );
         } else {
-          setStatus('disconnected')
+          setStatus('disconnected');
           if (reconnectAttemptsRef.current >= maxReconnectAttempts) {
-            setError('Max reconnection attempts reached')
+            setError('Max reconnection attempts reached');
           }
         }
-      }
+      };
     } catch (e) {
-      console.error('Failed to create WebSocket:', e)
-      setError('Failed to create WebSocket connection')
-      setStatus('error')
+      console.error('Failed to create WebSocket:', e);
+      setError('Failed to create WebSocket connection');
+      setStatus('error');
     }
-  }, [sessionId, autoReconnect, reconnectDelay, maxReconnectAttempts, pingInterval, cleanup])
+  }, [sessionId, autoReconnect, reconnectDelay, maxReconnectAttempts, pingInterval, cleanup]);
 
   const disconnect = useCallback(() => {
-    reconnectAttemptsRef.current = maxReconnectAttempts // Prevent auto-reconnect
-    cleanup()
-    setStatus('disconnected')
-  }, [cleanup, maxReconnectAttempts])
+    reconnectAttemptsRef.current = maxReconnectAttempts; // Prevent auto-reconnect
+    cleanup();
+    setStatus('disconnected');
+  }, [cleanup, maxReconnectAttempts]);
 
   const reconnect = useCallback(() => {
-    reconnectAttemptsRef.current = 0
-    connect()
-  }, [connect])
+    reconnectAttemptsRef.current = 0;
+    connect();
+  }, [connect]);
 
   // Connect when sessionId changes
   useEffect(() => {
     if (sessionId) {
-      connect()
+      connect();
     } else {
-      cleanup()
-      setStatus('disconnected')
-      setFrame(null)
-      setFrameData(null)
-      setSessionInfo(null)
-      setFrameCount(0)
+      cleanup();
+      setStatus('disconnected');
+      setFrame(null);
+      setFrameData(null);
+      setSessionInfo(null);
+      setFrameCount(0);
     }
 
-    return cleanup
-  }, [sessionId, connect, cleanup])
+    return cleanup;
+  }, [sessionId, connect, cleanup]);
 
   return {
     frame,
@@ -246,42 +244,42 @@ export function useScraperStream(
     frameCount,
     error,
     disconnect,
-    reconnect,
-  }
+    reconnect
+  };
 }
 
 // Dashboard API for fetching active scrapers
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 /**
  * Hook to get list of active scraper sessions
  */
 export function useActiveScrapers(pollInterval = 5000) {
-  const [sessions, setSessions] = useState<SessionInfo[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [sessions, setSessions] = useState<SessionInfo[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchActiveSessions = async () => {
       try {
         // Use dashboard backend which proxies to agent
-        const response = await fetch(`${API_URL}/api/v1/scrapers/active`)
-        if (!response.ok) throw new Error('Failed to fetch active scrapers')
-        const data = await response.json()
-        setSessions(data.sessions || [])
-        setError(null)
+        const response = await fetch(`${API_URL}/api/v1/scrapers/active`);
+        if (!response.ok) throw new Error('Failed to fetch active scrapers');
+        const data = await response.json();
+        setSessions(data.sessions || []);
+        setError(null);
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Failed to fetch')
+        setError(e instanceof Error ? e.message : 'Failed to fetch');
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    fetchActiveSessions()
-    const interval = setInterval(fetchActiveSessions, pollInterval)
+    fetchActiveSessions();
+    const interval = setInterval(fetchActiveSessions, pollInterval);
 
-    return () => clearInterval(interval)
-  }, [pollInterval])
+    return () => clearInterval(interval);
+  }, [pollInterval]);
 
-  return { sessions, loading, error }
+  return { sessions, loading, error };
 }

@@ -1,11 +1,11 @@
 /**
  * JobReplayPlayer - Screenshot playback player for job replay
- * 
+ *
  * Provides video-like controls for viewing stored screenshots
  * from completed scraping jobs.
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Play,
   Pause,
@@ -17,113 +17,113 @@ import {
   AlertCircle,
   Image as ImageIcon,
   Clock,
-  ExternalLink,
-} from 'lucide-react'
-import { useJobScreenshots, Screenshot, getScreenshotUrl } from '@/hooks/useJobScreenshots'
-import { cn, formatRelativeTime } from '@/lib/utils'
+  ExternalLink
+} from 'lucide-react';
+import { useJobScreenshots, getScreenshotUrl } from '@/hooks/useJobScreenshots';
+import { cn, formatRelativeTime } from '@/lib/utils';
 
 interface JobReplayPlayerProps {
-  jobId: string
-  className?: string
-  onClose?: () => void
+  jobId: string;
+  className?: string;
+  onClose?: () => void;
 }
 
-type PlaybackSpeed = 0.5 | 1 | 2 | 4
+type PlaybackSpeed = 0.5 | 1 | 2 | 4;
 
 export function JobReplayPlayer({ jobId, className, onClose }: JobReplayPlayerProps) {
-  const { data, isLoading, error } = useJobScreenshots(jobId)
-  const [currentIndex, setCurrentIndex] = useState(0)
-  const [isPlaying, setIsPlaying] = useState(false)
-  const [playbackSpeed, setPlaybackSpeed] = useState<PlaybackSpeed>(1)
-  const [showThumbnails, setShowThumbnails] = useState(true)
-  const thumbnailsRef = useRef<HTMLDivElement>(null)
+  const { data, isLoading, error } = useJobScreenshots(jobId);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [playbackSpeed, setPlaybackSpeed] = useState<PlaybackSpeed>(1);
+  const [showThumbnails, setShowThumbnails] = useState(true);
+  const thumbnailsRef = useRef<HTMLDivElement>(null);
 
-  const screenshots = data?.screenshots || []
-  const currentScreenshot = screenshots[currentIndex]
+  const screenshots = data?.screenshots || [];
+  const currentScreenshot = screenshots[currentIndex];
 
   // Auto-advance when playing
   useEffect(() => {
-    if (!isPlaying || screenshots.length === 0) return
+    if (!isPlaying || screenshots.length === 0) return;
 
-    const baseInterval = 2000 // Base 2 second interval (matches save rate)
+    const baseInterval = 2000; // Base 2 second interval (matches save rate)
     const interval = setInterval(() => {
       setCurrentIndex((i) => {
         if (i >= screenshots.length - 1) {
-          setIsPlaying(false)
-          return i
+          setIsPlaying(false);
+          return i;
         }
-        return i + 1
-      })
-    }, baseInterval / playbackSpeed)
+        return i + 1;
+      });
+    }, baseInterval / playbackSpeed);
 
-    return () => clearInterval(interval)
-  }, [isPlaying, playbackSpeed, screenshots.length])
+    return () => clearInterval(interval);
+  }, [isPlaying, playbackSpeed, screenshots.length]);
 
   // Scroll thumbnail into view
   useEffect(() => {
     if (thumbnailsRef.current && showThumbnails) {
-      const thumbnail = thumbnailsRef.current.children[currentIndex] as HTMLElement
+      const thumbnail = thumbnailsRef.current.children[currentIndex] as HTMLElement;
       if (thumbnail) {
-        thumbnail.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
+        thumbnail.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
       }
     }
-  }, [currentIndex, showThumbnails])
+  }, [currentIndex, showThumbnails]);
 
   // Keyboard controls
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       switch (e.key) {
         case ' ':
-          e.preventDefault()
-          setIsPlaying((p) => !p)
-          break
+          e.preventDefault();
+          setIsPlaying((p) => !p);
+          break;
         case 'ArrowLeft':
-          setCurrentIndex((i) => Math.max(0, i - 1))
-          break
+          setCurrentIndex((i) => Math.max(0, i - 1));
+          break;
         case 'ArrowRight':
-          setCurrentIndex((i) => Math.min(screenshots.length - 1, i + 1))
-          break
+          setCurrentIndex((i) => Math.min(screenshots.length - 1, i + 1));
+          break;
         case 'Home':
-          setCurrentIndex(0)
-          break
+          setCurrentIndex(0);
+          break;
         case 'End':
-          setCurrentIndex(screenshots.length - 1)
-          break
+          setCurrentIndex(screenshots.length - 1);
+          break;
         case 'Escape':
-          onClose?.()
-          break
+          onClose?.();
+          break;
       }
-    }
+    };
 
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [screenshots.length, onClose])
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [screenshots.length, onClose]);
 
   const goToStart = useCallback(() => {
-    setCurrentIndex(0)
-    setIsPlaying(false)
-  }, [])
+    setCurrentIndex(0);
+    setIsPlaying(false);
+  }, []);
 
   const goToEnd = useCallback(() => {
-    setCurrentIndex(screenshots.length - 1)
-    setIsPlaying(false)
-  }, [screenshots.length])
+    setCurrentIndex(screenshots.length - 1);
+    setIsPlaying(false);
+  }, [screenshots.length]);
 
   const goBack = useCallback(() => {
-    setCurrentIndex((i) => Math.max(0, i - 1))
-  }, [])
+    setCurrentIndex((i) => Math.max(0, i - 1));
+  }, []);
 
   const goForward = useCallback(() => {
-    setCurrentIndex((i) => Math.min(screenshots.length - 1, i + 1))
-  }, [screenshots.length])
+    setCurrentIndex((i) => Math.min(screenshots.length - 1, i + 1));
+  }, [screenshots.length]);
 
   const togglePlay = useCallback(() => {
     if (currentIndex >= screenshots.length - 1) {
       // If at end, restart from beginning
-      setCurrentIndex(0)
+      setCurrentIndex(0);
     }
-    setIsPlaying((p) => !p)
-  }, [currentIndex, screenshots.length])
+    setIsPlaying((p) => !p);
+  }, [currentIndex, screenshots.length]);
 
   if (isLoading) {
     return (
@@ -133,7 +133,7 @@ export function JobReplayPlayer({ jobId, className, onClose }: JobReplayPlayerPr
           <p>Loading screenshots...</p>
         </div>
       </div>
-    )
+    );
   }
 
   if (error) {
@@ -147,7 +147,7 @@ export function JobReplayPlayer({ jobId, className, onClose }: JobReplayPlayerPr
           </p>
         </div>
       </div>
-    )
+    );
   }
 
   if (screenshots.length === 0) {
@@ -159,7 +159,7 @@ export function JobReplayPlayer({ jobId, className, onClose }: JobReplayPlayerPr
           <p className="text-sm">This job doesn't have any recorded screenshots.</p>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -200,9 +200,7 @@ export function JobReplayPlayer({ jobId, className, onClose }: JobReplayPlayerPr
               <span className="truncate">{currentScreenshot.page_url}</span>
             </div>
             {currentScreenshot.action && (
-              <p className="text-xs text-surface-400 mt-1">
-                Action: {currentScreenshot.action}
-              </p>
+              <p className="text-xs text-surface-400 mt-1">Action: {currentScreenshot.action}</p>
             )}
           </div>
         )}
@@ -216,8 +214,8 @@ export function JobReplayPlayer({ jobId, className, onClose }: JobReplayPlayerPr
           max={screenshots.length - 1}
           value={currentIndex}
           onChange={(e) => {
-            setCurrentIndex(parseInt(e.target.value))
-            setIsPlaying(false)
+            setCurrentIndex(parseInt(e.target.value));
+            setIsPlaying(false);
           }}
           className="w-full h-1.5 bg-surface-700 rounded-lg appearance-none cursor-pointer
             [&::-webkit-slider-thumb]:appearance-none
@@ -320,8 +318,8 @@ export function JobReplayPlayer({ jobId, className, onClose }: JobReplayPlayerPr
             <button
               key={screenshot.filename}
               onClick={() => {
-                setCurrentIndex(index)
-                setIsPlaying(false)
+                setCurrentIndex(index);
+                setIsPlaying(false);
               }}
               className={cn(
                 'flex-shrink-0 w-16 h-10 rounded overflow-hidden border-2 transition-all',
@@ -341,7 +339,7 @@ export function JobReplayPlayer({ jobId, className, onClose }: JobReplayPlayerPr
         </div>
       )}
     </div>
-  )
+  );
 }
 
-export default JobReplayPlayer
+export default JobReplayPlayer;

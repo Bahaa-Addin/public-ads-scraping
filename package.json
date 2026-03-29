@@ -1,0 +1,48 @@
+{
+  "name": "public-ads-platform-workflow",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Repo-level workflow and orchestration tooling for Public Ads Platform",
+  "packageManager": "npm@10.8.2",
+  "workspaces": [
+    "orchestrator"
+  ],
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
+  "scripts": {
+    "prepare": "husky",
+    "bootstrap": "bash ./scripts/bootstrap.sh",
+    "bootstrap:e2e": "bash ./scripts/bootstrap.sh --with-e2e",
+    "lint": "bash ./scripts/lint.sh",
+    "typecheck": "bash ./scripts/typecheck.sh",
+    "test": "bash ./scripts/test.sh",
+    "test:e2e": "bash ./platform/tests/e2e/run_e2e_tests.sh",
+    "security": "bash ./scripts/security-scan.sh",
+    "build": "bash ./scripts/build.sh",
+    "verify": "npm run lint && npm run typecheck && npm run test && npm run security && npm run build",
+    "orchestrator:build": "npm --prefix ./orchestrator run build",
+    "orchestrator:status": "npm --prefix ./orchestrator run status",
+    "orchestrator:coverage": "npm --prefix ./orchestrator run coverage",
+    "orchestrator:sync": "npm --prefix ./orchestrator run sync"
+  },
+  "devDependencies": {
+    "@types/node": "^24.5.2",
+    "@typescript-eslint/eslint-plugin": "^8.44.1",
+    "@typescript-eslint/parser": "^8.44.1",
+    "eslint": "^8.57.1",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-react-hooks": "^4.6.2",
+    "eslint-plugin-react-refresh": "^0.4.24",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.5.2",
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.2"
+  },
+  "lint-staged": {
+    "*.{json,md,yml,yaml,cjs,mjs,js,ts,tsx,css,html}": [
+      "prettier --check"
+    ]
+  }
+}

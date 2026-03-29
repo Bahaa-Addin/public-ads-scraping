@@ -4,29 +4,22 @@ Thanks for helping improve Public Ads Platform.
 
 ## Before You Start
 
-- Read [`platform/README.md`](./platform/README.md) for local setup and architecture context.
+- Read [`LOCAL_BOOTSTRAP.md`](./LOCAL_BOOTSTRAP.md) for the repo-level setup flow and [`platform/README.md`](./platform/README.md) for component-level architecture context.
+- Review [`SPEC.md`](./SPEC.md), [`AGENTS.md`](./AGENTS.md), and [`TASKS.md`](./TASKS.md) before starting larger changes so your work aligns with the current execution plan.
 - Use local or placeholder credentials only. Never commit `.env` files, service-account keys, or private datasets.
 - Prefer small, reviewable pull requests over large mixed changes.
 
 ## Local Development
 
 ```bash
-cd platform
-./scripts/setup.sh --quick
-
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-
-cd scrapers && npm install && cd ..
-cp env.example .env
+npm run bootstrap
+cp .env.example platform/.env  # if bootstrap did not create it yet
 ```
 
 Run the fast deterministic test suite before opening a pull request:
 
 ```bash
-cd platform
-pytest tests/test_feature_extraction.py tests/test_reverse_prompt.py
+npm run verify
 ```
 
 ## Project Expectations
@@ -35,6 +28,7 @@ pytest tests/test_feature_extraction.py tests/test_reverse_prompt.py
 - Do not introduce committed secrets, service-account material, or non-public sample data.
 - Update documentation when setup steps, interfaces, or workflows change.
 - Call out scraping, policy, or legal considerations when a change affects how data is collected.
+- Keep branch targets aligned with the documented `develop -> staging -> main` promotion flow unless the team explicitly decides otherwise.
 
 ## Pull Request Checklist
 

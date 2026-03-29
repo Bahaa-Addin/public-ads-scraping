@@ -1,11 +1,12 @@
-import { cn } from '@/lib/utils'
-import { InputHTMLAttributes, forwardRef } from 'react'
-import { Search } from 'lucide-react'
+import { cn } from '@/lib/utils';
+import { forwardRef } from 'react';
+import type { InputHTMLAttributes } from 'react';
+import { Search } from 'lucide-react';
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
-  label?: string
-  error?: string
-  icon?: React.ReactNode
+  label?: string;
+  error?: string;
+  icon?: React.ReactNode;
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
@@ -13,15 +14,11 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     return (
       <div className="w-full">
         {label && (
-          <label className="block text-sm font-medium text-surface-300 mb-1.5">
-            {label}
-          </label>
+          <label className="block text-sm font-medium text-surface-300 mb-1.5">{label}</label>
         )}
         <div className="relative">
           {icon && (
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-500">
-              {icon}
-            </div>
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-500">{icon}</div>
           )}
           <input
             ref={ref}
@@ -37,15 +34,13 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             {...props}
           />
         </div>
-        {error && (
-          <p className="mt-1.5 text-sm text-danger-500">{error}</p>
-        )}
+        {error && <p className="mt-1.5 text-sm text-danger-500">{error}</p>}
       </div>
-    )
+    );
   }
-)
+);
 
-Input.displayName = 'Input'
+Input.displayName = 'Input';
 
 export function SearchInput({ className, ...props }: InputProps) {
   return (
@@ -55,6 +50,5 @@ export function SearchInput({ className, ...props }: InputProps) {
       className={className}
       {...props}
     />
-  )
+  );
 }
-

@@ -1,9 +1,9 @@
-import { cn } from '@/lib/utils'
-import { ReactNode } from 'react'
+import { cn } from '@/lib/utils';
+import type { ReactNode } from 'react';
 
 interface TableProps {
-  children: ReactNode
-  className?: string
+  children: ReactNode;
+  className?: string;
 }
 
 export function Table({ children, className }: TableProps) {
@@ -11,39 +11,27 @@ export function Table({ children, className }: TableProps) {
     <div className="overflow-x-auto">
       <table className={cn('w-full', className)}>{children}</table>
     </div>
-  )
+  );
 }
 
-export function TableHead({
-  children,
-  className,
-}: {
-  children: ReactNode
-  className?: string
-}) {
-  return <thead className={cn('', className)}>{children}</thead>
+export function TableHead({ children, className }: { children: ReactNode; className?: string }) {
+  return <thead className={cn('', className)}>{children}</thead>;
 }
 
-export function TableBody({
-  children,
-  className,
-}: {
-  children: ReactNode
-  className?: string
-}) {
-  return <tbody className={cn('', className)}>{children}</tbody>
+export function TableBody({ children, className }: { children: ReactNode; className?: string }) {
+  return <tbody className={cn('', className)}>{children}</tbody>;
 }
 
 export function TableRow({
   children,
   className,
   onClick,
-  selected,
+  selected
 }: {
-  children: ReactNode
-  className?: string
-  onClick?: () => void
-  selected?: boolean
+  children: ReactNode;
+  className?: string;
+  onClick?: () => void;
+  selected?: boolean;
 }) {
   return (
     <tr
@@ -57,17 +45,17 @@ export function TableRow({
     >
       {children}
     </tr>
-  )
+  );
 }
 
 export function TableHeader({
   children,
   className,
-  align = 'left',
+  align = 'left'
 }: {
-  children: ReactNode
-  className?: string
-  align?: 'left' | 'center' | 'right'
+  children: ReactNode;
+  className?: string;
+  align?: 'left' | 'center' | 'right';
 }) {
   return (
     <th
@@ -80,17 +68,17 @@ export function TableHeader({
     >
       {children}
     </th>
-  )
+  );
 }
 
 export function TableCell({
   children,
   className,
-  align = 'left',
+  align = 'left'
 }: {
-  children: ReactNode
-  className?: string
-  align?: 'left' | 'center' | 'right'
+  children: ReactNode;
+  className?: string;
+  align?: 'left' | 'center' | 'right';
 }) {
   return (
     <td
@@ -103,7 +91,7 @@ export function TableCell({
     >
       {children}
     </td>
-  )
+  );
 }
 
 export function TableEmpty({ message = 'No data available' }: { message?: string }) {
@@ -113,7 +101,7 @@ export function TableEmpty({ message = 'No data available' }: { message?: string
         {message}
       </td>
     </tr>
-  )
+  );
 }
 
 export function TableLoading({ rows = 5, cols = 4 }: { rows?: number; cols?: number }) {
@@ -129,6 +117,5 @@ export function TableLoading({ rows = 5, cols = 4 }: { rows?: number; cols?: num
         </tr>
       ))}
     </>
-  )
+  );
 }
-

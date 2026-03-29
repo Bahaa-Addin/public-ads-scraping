@@ -1,14 +1,14 @@
-import { cn } from '@/lib/utils'
-import { ReactNode } from 'react'
+import { cn } from '@/lib/utils';
+import type { ReactNode } from 'react';
 
-type BadgeVariant = 'success' | 'warning' | 'danger' | 'info' | 'neutral'
+type BadgeVariant = 'success' | 'warning' | 'danger' | 'info' | 'neutral';
 
 interface BadgeProps {
-  children: ReactNode
-  variant?: BadgeVariant
-  size?: 'sm' | 'md'
-  dot?: boolean
-  className?: string
+  children: ReactNode;
+  variant?: BadgeVariant;
+  size?: 'sm' | 'md';
+  dot?: boolean;
+  className?: string;
 }
 
 const variantClasses: Record<BadgeVariant, string> = {
@@ -16,20 +16,20 @@ const variantClasses: Record<BadgeVariant, string> = {
   warning: 'bg-warning-500/20 text-warning-500',
   danger: 'bg-danger-500/20 text-danger-500',
   info: 'bg-brand-500/20 text-brand-400',
-  neutral: 'bg-surface-700 text-surface-300',
-}
+  neutral: 'bg-surface-700 text-surface-300'
+};
 
 const sizeClasses = {
   sm: 'px-2 py-0.5 text-xs',
-  md: 'px-2.5 py-1 text-sm',
-}
+  md: 'px-2.5 py-1 text-sm'
+};
 
 export function Badge({
   children,
   variant = 'neutral',
   size = 'sm',
   dot = false,
-  className,
+  className
 }: BadgeProps) {
   return (
     <span
@@ -54,7 +54,7 @@ export function Badge({
       )}
       {children}
     </span>
-  )
+  );
 }
 
 export function StatusBadge({ status }: { status: string }) {
@@ -68,16 +68,15 @@ export function StatusBadge({ status }: { status: string }) {
     error: 'danger',
     retrying: 'warning',
     paused: 'neutral',
-    cancelled: 'neutral',
-  }
+    cancelled: 'neutral'
+  };
 
-  const variant = statusVariants[status.toLowerCase()] || 'neutral'
-  const displayStatus = status.replace(/_/g, ' ')
+  const variant = statusVariants[status.toLowerCase()] || 'neutral';
+  const displayStatus = status.replace(/_/g, ' ');
 
   return (
     <Badge variant={variant} dot>
       {displayStatus}
     </Badge>
-  )
+  );
 }
-

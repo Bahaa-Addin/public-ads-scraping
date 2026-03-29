@@ -2,11 +2,11 @@
 
 /**
  * Public Ads Scraper - Main Entry Point
- * 
+ *
  * A Playwright-based scraper for collecting public ads from multiple
  * public sources: Meta Ad Library, Google Ads Transparency Center,
  * Internet Archive, and Wikimedia Commons.
- * 
+ *
  * Usage:
  *   node scraper.js --source meta_ad_library --query "finance"
  *   node scraper.js --source google_ads_transparency --filters '{"region":"US"}'
@@ -49,15 +49,15 @@ class BaseScraper {
     this.rateLimiter = new RateLimiter(config.rateLimit || 60);
     this.results = [];
     this.errors = [];
-    
+
     // Streaming options
     this.streamingEnabled = options.streaming ?? false;
-    this.headless = options.headless ?? (process.env.HEADLESS !== 'false');
+    this.headless = options.headless ?? process.env.HEADLESS !== 'false';
     this.sessionId = options.sessionId || uuidv4();
     this.jobId = options.jobId || null;
     this.streamManager = options.streamManager || null;
     this.screenshotCount = 0;
-    
+
     logger.info('BaseScraper created', {
       source: config.name,
       sessionId: this.sessionId,
@@ -72,20 +72,16 @@ class BaseScraper {
       streaming: this.streamingEnabled,
       headless: this.headless
     });
-    
+
     this.browser = await chromium.launch({
       headless: this.headless,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu'
-      ]
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
     });
 
     this.context = await this.browser.newContext({
       viewport: { width: 1280, height: 720 },
-      userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      userAgent:
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
       locale: 'en-US',
       timezoneId: 'America/New_York'
     });
@@ -104,7 +100,7 @@ class BaseScraper {
 
     // Create main page for streaming
     this.mainPage = await this.context.newPage();
-    
+
     // Start screencast if streaming is enabled
     if (this.streamingEnabled && this.streamManager) {
       await this.streamManager.startScreencast(this.sessionId, this.mainPage, {
@@ -119,13 +115,14 @@ class BaseScraper {
     // Stop screencast if streaming
     if (this.streamingEnabled && this.streamManager) {
       await this.streamManager.stopScreencast(this.sessionId);
-      this.screenshotCount = this.streamManager.getSessionInfo(this.sessionId)?.screenshot_count || 0;
-      logger.info('Screencast stopped', { 
+      this.screenshotCount =
+        this.streamManager.getSessionInfo(this.sessionId)?.screenshot_count || 0;
+      logger.info('Screencast stopped', {
         sessionId: this.sessionId,
-        screenshotCount: this.screenshotCount 
+        screenshotCount: this.screenshotCount
       });
     }
-    
+
     if (this.mainPage) {
       await this.mainPage.close();
     }
@@ -158,19 +155,19 @@ class BaseScraper {
     }
   }
 
-  async scrape(query, filters = {}) {
+  async scrape(query, _filters = {}) {
     throw new Error('scrape() must be implemented by subclass');
   }
 
   async downloadImage(url) {
     try {
       await this.rateLimiter.acquire();
-      
+
       const page = await this.context.newPage();
       const response = await page.goto(url, { waitUntil: 'load', timeout: 30000 });
       const buffer = await response.body();
       await page.close();
-      
+
       return await processImage(buffer);
     } catch (error) {
       logger.error('Failed to download image', { url, error: error.message });
@@ -202,7 +199,9 @@ class MetaAdLibraryScraper extends BaseScraper {
 
       // Handle cookie consent if present
       try {
-        await page.click('[data-testid="cookie-policy-manage-dialog-accept-button"]', { timeout: 3000 });
+        await page.click('[data-testid="cookie-policy-manage-dialog-accept-button"]', {
+          timeout: 3000
+        });
       } catch {
         // Cookie dialog not present
       }
@@ -235,7 +234,6 @@ class MetaAdLibraryScraper extends BaseScraper {
           this.errors.push({ type: 'extraction', error: error.message });
         }
       }
-
     } catch (error) {
       logger.error('Meta Ad Library scraping failed', { error: error.message });
       throw error;
@@ -262,7 +260,7 @@ class MetaAdLibraryScraper extends BaseScraper {
     return `${this.config.baseUrl}?${params.toString()}`;
   }
 
-  async extractAdData(element, page) {
+  async extractAdData(element, _page) {
     try {
       // Extract image URL
       const imageElement = await element.$(this.config.selectors.adImage);
@@ -274,8 +272,8 @@ class MetaAdLibraryScraper extends BaseScraper {
 
       // Extract ad text
       const textElements = await element.$$('div[dir="auto"]');
-      const texts = await Promise.all(textElements.map(el => el.textContent()));
-      const adText = texts.filter(t => t && t.length > 10).join(' ');
+      const texts = await Promise.all(textElements.map((el) => el.textContent()));
+      const adText = texts.filter((t) => t && t.length > 10).join(' ');
 
       // Extract page link for source URL
       const linkElement = await element.$(this.config.selectors.pageLink);
@@ -322,7 +320,10 @@ class GoogleAdsTransparencyScraper extends BaseScraper {
 
     try {
       const searchUrl = this.buildSearchUrl(query, filters);
-      logger.info('Scraping Google Ads Transparency Center', { url: searchUrl, sessionId: this.sessionId });
+      logger.info('Scraping Google Ads Transparency Center', {
+        url: searchUrl,
+        sessionId: this.sessionId
+      });
 
       await this.rateLimiter.acquire();
       await page.goto(searchUrl, { waitUntil: 'networkidle', timeout: 60000 });
@@ -345,7 +346,7 @@ class GoogleAdsTransparencyScraper extends BaseScraper {
 
       // Extract ad creatives
       const images = await extractPageImages(page, { minWidth: 150, minHeight: 150 });
-      
+
       for (const image of images.slice(0, filters.maxItems || 100)) {
         const adData = {
           id: generateAssetId('google', generateContentHash(image.src)),
@@ -366,7 +367,6 @@ class GoogleAdsTransparencyScraper extends BaseScraper {
           ads.push(validation.data);
         }
       }
-
     } catch (error) {
       logger.error('Google Ads Transparency scraping failed', { error: error.message });
       throw error;
@@ -377,10 +377,10 @@ class GoogleAdsTransparencyScraper extends BaseScraper {
     return ads;
   }
 
-  buildSearchUrl(query, filters) {
+  buildSearchUrl(_query, filters) {
     const params = new URLSearchParams();
     if (filters.region) params.set('region', filters.region);
-    
+
     const queryString = params.toString();
     return `${this.config.baseUrl}${queryString ? '?' + queryString : ''}`;
   }
@@ -447,7 +447,6 @@ class InternetArchiveScraper extends BaseScraper {
           this.errors.push({ type: 'extraction', error: error.message });
         }
       }
-
     } catch (error) {
       logger.error('Internet Archive scraping failed', { error: error.message });
       throw error;
@@ -458,7 +457,7 @@ class InternetArchiveScraper extends BaseScraper {
     return ads;
   }
 
-  buildSearchUrl(query, filters) {
+  buildSearchUrl(query, _filters) {
     const params = new URLSearchParams({
       query: query || 'advertisement',
       sort: '-date'
@@ -526,7 +525,6 @@ class WikimediaCommonsScraper extends BaseScraper {
           this.errors.push({ type: 'extraction', error: error.message });
         }
       }
-
     } catch (error) {
       logger.error('Wikimedia Commons scraping failed', { error: error.message });
       throw error;
@@ -537,8 +535,7 @@ class WikimediaCommonsScraper extends BaseScraper {
     return ads;
   }
 
-  buildSearchUrl(query, filters) {
-    const searchQuery = query || 'advertisement poster';
+  buildSearchUrl(_query, _filters) {
     return `${this.config.baseUrl}wiki/Category:Advertisements`;
   }
 }
@@ -582,7 +579,10 @@ program
   .version('1.0.0');
 
 program
-  .option('-s, --source <source>', 'Scraper source (meta_ad_library, google_ads_transparency, internet_archive, wikimedia_commons)')
+  .option(
+    '-s, --source <source>',
+    'Scraper source (meta_ad_library, google_ads_transparency, internet_archive, wikimedia_commons)'
+  )
   .option('-q, --query <query>', 'Search query')
   .option('-f, --filters <json>', 'JSON filters object')
   .option('-o, --output <file>', 'Output file path')
@@ -603,10 +603,9 @@ program
       scraper = createScraper(source);
       await scraper.initialize();
 
-      const assets = await retryWithBackoff(
-        () => scraper.scrape(query, filters),
-        { maxRetries: 3 }
-      );
+      const assets = await retryWithBackoff(() => scraper.scrape(query, filters), {
+        maxRetries: 3
+      });
 
       const processingTime = Date.now() - startTime;
       const output = formatOutput(assets, {
@@ -618,7 +617,7 @@ program
 
       // Output results
       const outputJson = JSON.stringify(output, null, 2);
-      
+
       if (options.output) {
         const fs = await import('fs/promises');
         await fs.writeFile(options.output, outputJson);
@@ -633,7 +632,6 @@ program
         processingTime,
         errors: scraper.errors.length
       });
-
     } catch (error) {
       const output = formatError(error, { source: options.source });
       console.error(JSON.stringify(output));
@@ -655,4 +653,3 @@ export {
   WikimediaCommonsScraper,
   createScraper
 };
-

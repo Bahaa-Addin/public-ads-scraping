@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState } from 'react';
 import {
   Play,
   Pause,
@@ -18,87 +18,97 @@ import {
   ChevronDown,
   RefreshCw,
   Monitor,
-  Film,
-} from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
-import { ScraperGrid } from '@/components/ScraperGrid'
-import { JobReplayPlayer } from '@/components/JobReplayPlayer'
-import { useEventStream, PipelineEvent } from '@/hooks/useEventStream'
-import { useJobsWithScreenshots } from '@/hooks/useJobScreenshots'
-import { useIsTemplateMode } from '@/lib/useTemplateMode'
-import { cn } from '@/lib/utils'
-import { useMutation } from '@tanstack/react-query'
-import * as api from '@/lib/api'
+  Film
+} from 'lucide-react';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
+import { ScraperGrid } from '@/components/ScraperGrid';
+import { JobReplayPlayer } from '@/components/JobReplayPlayer';
+import { useEventStream } from '@/hooks/useEventStream';
+import type { PipelineEvent } from '@/hooks/useEventStream';
+import { useJobsWithScreenshots } from '@/hooks/useJobScreenshots';
+import { useIsTemplateMode } from '@/lib/useTemplateMode';
+import { cn } from '@/lib/utils';
+import { useMutation } from '@tanstack/react-query';
+import * as api from '@/lib/api';
 
 // Source options for scraping
 const SOURCES = [
   { id: 'meta_ad_library', name: 'Meta Ad Library' },
   { id: 'google_ads_transparency', name: 'Google Ads Transparency' },
   { id: 'internet_archive', name: 'Internet Archive' },
-  { id: 'wikimedia_commons', name: 'Wikimedia Commons' },
-]
+  { id: 'wikimedia_commons', name: 'Wikimedia Commons' }
+];
 
 // Get icon and color for event type
 function getEventStyle(type: string) {
   switch (type) {
     case 'pipeline_started':
-      return { icon: Play, color: 'text-brand-500', bg: 'bg-brand-500/10' }
+      return { icon: Play, color: 'text-brand-500', bg: 'bg-brand-500/10' };
     case 'step_started':
-      return { icon: Loader2, color: 'text-yellow-500', bg: 'bg-yellow-500/10' }
+      return { icon: Loader2, color: 'text-yellow-500', bg: 'bg-yellow-500/10' };
     case 'step_progress':
-      return { icon: RefreshCw, color: 'text-blue-500', bg: 'bg-blue-500/10' }
+      return { icon: RefreshCw, color: 'text-blue-500', bg: 'bg-blue-500/10' };
     case 'asset_scraped':
-      return { icon: Image, color: 'text-cyan-500', bg: 'bg-cyan-500/10' }
+      return { icon: Image, color: 'text-cyan-500', bg: 'bg-cyan-500/10' };
     case 'screenshot_captured':
-      return { icon: Image, color: 'text-purple-500', bg: 'bg-purple-500/10' }
+      return { icon: Image, color: 'text-purple-500', bg: 'bg-purple-500/10' };
     case 'features_extracted':
-      return { icon: Sparkles, color: 'text-pink-500', bg: 'bg-pink-500/10' }
+      return { icon: Sparkles, color: 'text-pink-500', bg: 'bg-pink-500/10' };
     case 'prompt_generated':
-      return { icon: FileText, color: 'text-green-500', bg: 'bg-green-500/10' }
+      return { icon: FileText, color: 'text-green-500', bg: 'bg-green-500/10' };
     case 'step_completed':
-      return { icon: CheckCircle, color: 'text-emerald-500', bg: 'bg-emerald-500/10' }
+      return { icon: CheckCircle, color: 'text-emerald-500', bg: 'bg-emerald-500/10' };
     case 'pipeline_completed':
-      return { icon: CheckCircle, color: 'text-emerald-500', bg: 'bg-emerald-500/10' }
+      return { icon: CheckCircle, color: 'text-emerald-500', bg: 'bg-emerald-500/10' };
     case 'error':
-      return { icon: XCircle, color: 'text-red-500', bg: 'bg-red-500/10' }
+      return { icon: XCircle, color: 'text-red-500', bg: 'bg-red-500/10' };
     case 'connected':
-      return { icon: Wifi, color: 'text-emerald-500', bg: 'bg-emerald-500/10' }
+      return { icon: Wifi, color: 'text-emerald-500', bg: 'bg-emerald-500/10' };
     default:
-      return { icon: AlertCircle, color: 'text-surface-400', bg: 'bg-surface-800' }
+      return { icon: AlertCircle, color: 'text-surface-400', bg: 'bg-surface-800' };
   }
 }
 
 // Format timestamp
 function formatTime(timestamp: string) {
   try {
-    const date = new Date(timestamp)
+    const date = new Date(timestamp);
     return date.toLocaleTimeString('en-US', {
       hour: '2-digit',
       minute: '2-digit',
       second: '2-digit',
-      hour12: false,
-    })
+      hour12: false
+    });
   } catch {
-    return '--:--:--'
+    return '--:--:--';
   }
 }
 
 // Timeline Event Component
 function TimelineEvent({ event }: { event: PipelineEvent }) {
-  const style = getEventStyle(event.type)
-  const Icon = style.icon
-  const [expanded, setExpanded] = useState(false)
+  const style = getEventStyle(event.type);
+  const Icon = style.icon;
+  const [expanded, setExpanded] = useState(false);
 
-  const title = event.type.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
-  const message = (event.data.message as string) || ''
-  const hasDetails = Object.keys(event.data).length > 1 || event.data.image_url || event.data.screenshot_url
+  const title = event.type.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  const message = (event.data.message as string) || '';
+  const progress = typeof event.data.progress === 'number' ? event.data.progress : null;
+  const previewUrl =
+    typeof event.data.image_url === 'string'
+      ? event.data.image_url
+      : typeof event.data.screenshot_url === 'string'
+        ? event.data.screenshot_url
+        : null;
+  const hasDetails = Object.keys(event.data).length > 1 || previewUrl;
 
   return (
     <div className="flex gap-4 group">
       {/* Timeline line and dot */}
       <div className="flex flex-col items-center">
         <div className={cn('w-10 h-10 rounded-full flex items-center justify-center', style.bg)}>
-          <Icon className={cn('w-5 h-5', style.color, event.type === 'step_started' && 'animate-spin')} />
+          <Icon
+            className={cn('w-5 h-5', style.color, event.type === 'step_started' && 'animate-spin')}
+          />
         </div>
         <div className="w-px flex-1 bg-surface-700 group-last:hidden" />
       </div>
@@ -117,20 +127,20 @@ function TimelineEvent({ event }: { event: PipelineEvent }) {
         </div>
 
         {/* Progress bar */}
-        {event.type === 'step_progress' && typeof event.data.progress === 'number' && (
+        {event.type === 'step_progress' && progress !== null && (
           <div className="mt-2 h-2 bg-surface-800 rounded-full overflow-hidden">
             <div
               className="h-full bg-brand-500 transition-all duration-300"
-              style={{ width: `${event.data.progress}%` }}
+              style={{ width: `${progress}%` }}
             />
           </div>
         )}
 
         {/* Image preview */}
-        {(event.data.image_url || event.data.screenshot_url) && (
+        {previewUrl && (
           <div className="mt-3">
             <img
-              src={(event.data.image_url || event.data.screenshot_url) as string}
+              src={previewUrl}
               alt="Asset preview"
               className="rounded-lg max-w-xs max-h-48 object-cover border border-surface-700"
             />
@@ -155,27 +165,27 @@ function TimelineEvent({ event }: { event: PipelineEvent }) {
         )}
       </div>
     </div>
-  )
+  );
 }
 
 export default function Pipeline() {
-  const isTemplate = useIsTemplateMode()
-  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+  const isTemplate = useIsTemplateMode();
+  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
   // Form state
-  const [selectedSources, setSelectedSources] = useState<string[]>(['meta_ad_library'])
-  const [query, setQuery] = useState('')
-  const [limit, setLimit] = useState(50)
-  const [activeTab, setActiveTab] = useState<'timeline' | 'live' | 'replays'>('timeline')
-  const [selectedReplayJob, setSelectedReplayJob] = useState<string | null>(null)
+  const [selectedSources, setSelectedSources] = useState<string[]>(['meta_ad_library']);
+  const [query, setQuery] = useState('');
+  const [limit, setLimit] = useState(50);
+  const [activeTab, setActiveTab] = useState<'timeline' | 'live' | 'replays'>('timeline');
+  const [selectedReplayJob, setSelectedReplayJob] = useState<string | null>(null);
 
   // SSE connection
   const { events, connected, paused, setPaused, clearEvents, reconnect } = useEventStream(
     `${apiUrl}/api/v1/events/stream`
-  )
+  );
 
   // Jobs with screenshots (for replay)
-  const { data: jobsWithScreenshots } = useJobsWithScreenshots()
+  const { data: jobsWithScreenshots } = useJobsWithScreenshots();
 
   // Job mutations
   const pipelineMutation = useMutation({
@@ -184,43 +194,43 @@ export default function Pipeline() {
         sources: selectedSources,
         query: query || undefined,
         limit,
-        skip_steps: [],
-      }),
-  })
+        skip_steps: []
+      })
+  });
 
   const scrapeMutation = useMutation({
     mutationFn: () =>
       api.startScrapeJob({
         sources: selectedSources,
         query: query || undefined,
-        limit,
-      }),
-  })
+        limit
+      })
+  });
 
   const extractMutation = useMutation({
-    mutationFn: () => api.startExtractJob({ reprocess: false }),
-  })
+    mutationFn: () => api.startExtractJob({ reprocess: false })
+  });
 
   const generateMutation = useMutation({
-    mutationFn: () => api.startGenerateJob({ regenerate: false }),
-  })
+    mutationFn: () => api.startGenerateJob({ regenerate: false })
+  });
 
   const classifyMutation = useMutation({
-    mutationFn: () => api.startClassifyJob({ reclassify: false }),
-  })
+    mutationFn: () => api.startClassifyJob({ reclassify: false })
+  });
 
   const isAnyLoading =
     pipelineMutation.isPending ||
     scrapeMutation.isPending ||
     extractMutation.isPending ||
     generateMutation.isPending ||
-    classifyMutation.isPending
+    classifyMutation.isPending;
 
   const toggleSource = (sourceId: string) => {
     setSelectedSources((prev) =>
       prev.includes(sourceId) ? prev.filter((s) => s !== sourceId) : [...prev, sourceId]
-    )
-  }
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -298,9 +308,7 @@ export default function Pipeline() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-surface-300 mb-2">
-                  Limit
-                </label>
+                <label className="block text-sm font-medium text-surface-300 mb-2">Limit</label>
                 <input
                   type="number"
                   value={limit}
@@ -381,7 +389,8 @@ export default function Pipeline() {
 
             {isTemplate && (
               <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm">
-                Actions are disabled in template mode. Switch to the live dashboard to execute real jobs.
+                Actions are disabled in template mode. Switch to the live dashboard to execute real
+                jobs.
               </div>
             )}
           </div>
@@ -557,7 +566,8 @@ export default function Pipeline() {
                 ) : (
                   <div className="space-y-2">
                     <p className="text-sm text-surface-400 mb-4">
-                      {jobsWithScreenshots.count} job{jobsWithScreenshots.count !== 1 ? 's' : ''} with recorded screenshots
+                      {jobsWithScreenshots.count} job{jobsWithScreenshots.count !== 1 ? 's' : ''}{' '}
+                      with recorded screenshots
                     </p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                       {jobsWithScreenshots.jobs.map((jobId) => (
@@ -570,9 +580,7 @@ export default function Pipeline() {
                             <Film className="w-4 h-4 text-brand-500" />
                             <span className="font-medium text-white">Job Replay</span>
                           </div>
-                          <p className="text-xs text-surface-500 font-mono truncate">
-                            {jobId}
-                          </p>
+                          <p className="text-xs text-surface-500 font-mono truncate">{jobId}</p>
                         </button>
                       ))}
                     </div>
@@ -584,5 +592,5 @@ export default function Pipeline() {
         </Card>
       )}
     </div>
-  )
+  );
 }

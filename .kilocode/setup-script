@@ -1,0 +1,18 @@
+#!/bin/bash
+
+set -e
+
+echo "Preparing worktree at $WORKTREE_PATH"
+
+if [ -f "$REPO_PATH/platform/.env" ] && [ ! -f "$WORKTREE_PATH/platform/.env" ]; then
+  mkdir -p "$WORKTREE_PATH/platform"
+  cp "$REPO_PATH/platform/.env" "$WORKTREE_PATH/platform/.env"
+  echo "Copied platform/.env into worktree"
+fi
+
+if [ ! -d "$WORKTREE_PATH/platform/venv" ]; then
+  echo "Shared Python environment not present in worktree."
+  echo "Run 'npm run bootstrap' from the worktree root if you need a full local setup."
+fi
+
+echo "Worktree setup complete"

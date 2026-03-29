@@ -1,6 +1,6 @@
 /**
  * Utility functions for the Public Ads Scrapers
- * 
+ *
  * Provides common functionality for rate limiting, retry logic,
  * image processing, and data validation.
  */
@@ -9,7 +9,6 @@ import { createLogger, format, transports } from 'winston';
 import sharp from 'sharp';
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
-import path from 'path';
 
 // ============================================================================
 // Logger Configuration
@@ -17,25 +16,18 @@ import path from 'path';
 
 const logger = createLogger({
   level: process.env.LOG_LEVEL || 'info',
-  format: format.combine(
-    format.timestamp(),
-    format.errors({ stack: true }),
-    format.json()
-  ),
+  format: format.combine(format.timestamp(), format.errors({ stack: true }), format.json()),
   defaultMeta: { service: 'public-ads-scraper' },
   transports: [
     new transports.Console({
-      format: format.combine(
-        format.colorize(),
-        format.simple()
-      )
+      format: format.combine(format.colorize(), format.simple())
     }),
-    new transports.File({ 
-      filename: 'logs/scraper-error.log', 
-      level: 'error' 
+    new transports.File({
+      filename: 'logs/scraper-error.log',
+      level: 'error'
     }),
-    new transports.File({ 
-      filename: 'logs/scraper.log' 
+    new transports.File({
+      filename: 'logs/scraper.log'
     })
   ]
 });
@@ -76,7 +68,7 @@ export class RateLimiter {
     const now = Date.now();
     const elapsed = now - this.lastRefill;
     const newTokens = Math.floor(elapsed / this.refillRate);
-    
+
     if (newTokens > 0) {
       this.tokens = Math.min(this.burstSize, this.tokens + newTokens);
       this.lastRefill = now;
@@ -84,7 +76,7 @@ export class RateLimiter {
   }
 
   sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }
 
@@ -95,50 +87,47 @@ export class RateLimiter {
 /**
  * Retry a function with exponential backoff
  */
-export async function retryWithBackoff(
-  fn,
-  options = {}
-) {
+export async function retryWithBackoff(fn, options = {}) {
   const {
     maxRetries = 3,
     initialDelay = 1000,
     maxDelay = 30000,
     factor = 2,
     onRetry = null,
-    retryOn = (error) => true
+    retryOn = (_error) => true
   } = options;
 
   let lastError;
-  
+
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       return await fn();
     } catch (error) {
       lastError = error;
-      
+
       if (attempt === maxRetries || !retryOn(error)) {
         throw error;
       }
 
       const delay = Math.min(initialDelay * Math.pow(factor, attempt), maxDelay);
-      
+
       if (onRetry) {
         onRetry(error, attempt + 1, delay);
       }
-      
+
       logger.warn(`Retry attempt ${attempt + 1}/${maxRetries} after ${delay}ms`, {
         error: error.message
       });
-      
+
       await sleep(delay);
     }
   }
-  
+
   throw lastError;
 }
 
 export function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 // ============================================================================
@@ -149,12 +138,7 @@ export function sleep(ms) {
  * Process and optimize an image for storage
  */
 export async function processImage(buffer, options = {}) {
-  const {
-    maxWidth = 1920,
-    maxHeight = 1080,
-    quality = 85,
-    format = 'webp'
-  } = options;
+  const { maxWidth = 1920, maxHeight = 1080, quality = 85, format = 'webp' } = options;
 
   try {
     let image = sharp(buffer);
@@ -207,14 +191,11 @@ export async function processImage(buffer, options = {}) {
  * Extract key frames from a video URL
  */
 export async function extractVideoKeyFrames(videoUrl, options = {}) {
-  const {
-    numFrames = 5,
-    outputFormat = 'jpeg'
-  } = options;
+  const { numFrames = 5 } = options;
 
   // Placeholder - in production, use ffmpeg or a video processing service
   logger.info('Video key frame extraction requested', { videoUrl, numFrames });
-  
+
   return {
     frames: [],
     metadata: {
@@ -293,10 +274,7 @@ function isValidDate(string) {
 
 function sanitizeText(text) {
   if (!text) return null;
-  return text
-    .trim()
-    .replace(/\s+/g, ' ')
-    .substring(0, 10000); // Limit length
+  return text.trim().replace(/\s+/g, ' ').substring(0, 10000); // Limit length
 }
 
 // ============================================================================
@@ -328,8 +306,8 @@ export function generateContentHash(content) {
  * Wait for network idle with timeout
  */
 export async function waitForNetworkIdle(page, options = {}) {
-  const { timeout = 30000, maxInflightRequests = 0 } = options;
-  
+  const { timeout = 30000 } = options;
+
   try {
     await page.waitForLoadState('networkidle', { timeout });
   } catch (error) {
@@ -341,24 +319,20 @@ export async function waitForNetworkIdle(page, options = {}) {
  * Scroll to load lazy content
  */
 export async function scrollToLoadContent(page, options = {}) {
-  const {
-    scrollDelay = 500,
-    maxScrolls = 10,
-    scrollAmount = 500
-  } = options;
+  const { scrollDelay = 500, maxScrolls = 10, scrollAmount = 500 } = options;
 
   for (let i = 0; i < maxScrolls; i++) {
     await page.evaluate((amount) => {
       window.scrollBy(0, amount);
     }, scrollAmount);
-    
+
     await sleep(scrollDelay);
-    
+
     // Check if we've reached the bottom
     const isAtBottom = await page.evaluate(() => {
-      return (window.innerHeight + window.scrollY) >= document.body.scrollHeight;
+      return window.innerHeight + window.scrollY >= document.body.scrollHeight;
     });
-    
+
     if (isAtBottom) break;
   }
 }
@@ -369,23 +343,28 @@ export async function scrollToLoadContent(page, options = {}) {
 export async function extractPageImages(page, options = {}) {
   const { minWidth = 100, minHeight = 100 } = options;
 
-  return await page.evaluate(({ minWidth, minHeight }) => {
-    const images = Array.from(document.querySelectorAll('img'));
-    
-    return images
-      .filter(img => {
-        return img.naturalWidth >= minWidth && 
-               img.naturalHeight >= minHeight &&
-               img.src && 
-               !img.src.startsWith('data:');
-      })
-      .map(img => ({
-        src: img.src,
-        alt: img.alt || null,
-        width: img.naturalWidth,
-        height: img.naturalHeight
-      }));
-  }, { minWidth, minHeight });
+  return await page.evaluate(
+    ({ minWidth, minHeight }) => {
+      const images = Array.from(document.querySelectorAll('img'));
+
+      return images
+        .filter((img) => {
+          return (
+            img.naturalWidth >= minWidth &&
+            img.naturalHeight >= minHeight &&
+            img.src &&
+            !img.src.startsWith('data:')
+          );
+        })
+        .map((img) => ({
+          src: img.src,
+          alt: img.alt || null,
+          width: img.naturalWidth,
+          height: img.naturalHeight
+        }));
+    },
+    { minWidth, minHeight }
+  );
 }
 
 // ============================================================================
@@ -453,7 +432,7 @@ export function formatOutput(assets, metadata = {}) {
     timestamp: new Date().toISOString(),
     source: metadata.source || 'unknown',
     count: assets.length,
-    assets: assets.map(asset => ({
+    assets: assets.map((asset) => ({
       id: asset.id || generateAssetId(metadata.source, asset.sourceId),
       ...asset,
       scrapedAt: new Date().toISOString()
@@ -482,4 +461,3 @@ export function formatError(error, metadata = {}) {
     metadata
   };
 }
-

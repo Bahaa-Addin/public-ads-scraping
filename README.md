@@ -66,6 +66,7 @@ The platform is designed to support an end-to-end workflow for public ad analysi
 │  └──────────┘ └──────────┘ └──────────┘ └──────────┘            │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
 ## High-Level System Components
 
 ```text
@@ -135,12 +136,12 @@ The system is organized in layers:
 
 ### Service Ports
 
-| Service | Port | Purpose |
-|---------|------|---------|
-| Dashboard Frontend | `5173` | React UI |
-| Dashboard Backend | `8000` | API proxy and dashboard services |
-| Agent API | `8080` | Job orchestration |
-| Node.js Scraper | `3001` | Scraping and live streaming |
+| Service            | Port   | Purpose                          |
+| ------------------ | ------ | -------------------------------- |
+| Dashboard Frontend | `5173` | React UI                         |
+| Dashboard Backend  | `8000` | API proxy and dashboard services |
+| Agent API          | `8081` | Job orchestration                |
+| Node.js Scraper    | `3001` | Scraping and live streaming      |
 
 ## Operating Modes
 
@@ -165,24 +166,24 @@ flowchart LR
 
 Local mode is the default. It is intended for development, validation, demos, and low-cost iteration.
 
-| Component | Implementation |
-|-----------|---------------|
-| Storage | JSON files in `./data/db/` |
-| Files | Local filesystem in `./data/assets/` |
-| Queue | In-memory |
-| LLM | Templates or optional Ollama |
-| Monitoring | Local logs and metrics files |
+| Component  | Implementation                       |
+| ---------- | ------------------------------------ |
+| Storage    | JSON files in `./data/db/`           |
+| Files      | Local filesystem in `./data/assets/` |
+| Queue      | In-memory                            |
+| LLM        | Templates or optional Ollama         |
+| Monitoring | Local logs and metrics files         |
 
 ### Cloud Mode
 
 Cloud mode enables managed infrastructure for production-style operation.
 
-| Component | Implementation |
-|-----------|---------------|
-| Storage | Cloud Firestore |
-| Files | Cloud Storage |
-| Queue | Cloud Pub/Sub |
-| LLM | Vertex AI |
+| Component  | Implementation   |
+| ---------- | ---------------- |
+| Storage    | Cloud Firestore  |
+| Files      | Cloud Storage    |
+| Queue      | Cloud Pub/Sub    |
+| LLM        | Vertex AI        |
 | Monitoring | Cloud Monitoring |
 
 ### Vertex AI Restriction
@@ -211,19 +212,15 @@ GCP_PROJECT_ID=your-project-id
 ### Local Setup
 
 ```bash
-cd platform
-./scripts/setup.sh --quick
+cd /Users/monterey/Workspace/Projs/Tasmem/public-ads-scraping
+npm run bootstrap
 
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
+source platform/venv/bin/activate
 
-cd scrapers && npm install && cd ..
-cp env.example .env
-
-pytest tests/test_feature_extraction.py tests/test_reverse_prompt.py
-python main.py
+npm run verify
 ```
+
+Use [`LOCAL_BOOTSTRAP.md`](./LOCAL_BOOTSTRAP.md) for the full repo-level workflow, service startup commands, optional E2E setup, and orchestrator usage.
 
 ### Minimal Local Configuration
 
@@ -236,6 +233,82 @@ SEQUENTIAL_SCRAPING=true
 GLOBAL_JOB_CAP=100
 LOG_LEVEL=INFO
 ```
+
+## AI-Assisted Workflow Model
+
+This repository now includes a repo-native planning and execution workflow for AI-assisted coding. It ports the operating model from the source repository, but rewrites it for the Public Ads Platform architecture, commands, quality gates, and branch flow.
+
+> This workflow acts like a control tower for repo changes: plan the work, track the state, run the gates, and keep branch promotion disciplined.
+
+### Workflow At A Glance
+
+```mermaid
+flowchart LR
+    A["Contributor or coding agent"] --> B["Plan with SPEC.md, AGENTS.md, TASKS.md"]
+    B --> C["Track progress in STATE.json and ORCHESTRATOR_STATE.json"]
+    C --> D["Run orchestrator sync, status, and coverage"]
+    D --> E["Verify with lint, typecheck, test, security, and build"]
+    E --> F["Open PR and promote develop -> staging -> main"]
+```
+
+### What It Adds
+
+- root bootstrap and verification commands so contributors can work from the repository root
+- human-readable planning documents for system definition, execution sequencing, and task tracking
+- machine-readable state files for progress, verification status, and orchestrator sync
+- a lightweight orchestrator that reports task coverage and runtime state without forcing a heavyweight scheduler
+- practical contributor guardrails through pre-commit hooks, commit-message guidance, and CI
+
+### Workflow Artifacts
+
+| Artifact                                                                             | Purpose                                                                                    |
+| ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------ |
+| [`SPEC.md`](./SPEC.md)                                                               | Defines users, system requirements, and non-functional targets for the Public Ads Platform |
+| [`AGENTS.md`](./AGENTS.md)                                                           | Breaks work into phases, dependencies, implementation surfaces, and acceptance criteria    |
+| [`TASKS.md`](./TASKS.md)                                                             | Tracks the human task list with priorities and requirement links                           |
+| [`STATE.json`](./STATE.json)                                                         | Stores machine-readable project progress and verification results                          |
+| [`ORCHESTRATOR_STATE.json`](./ORCHESTRATOR_STATE.json)                               | Stores orchestrator task state, quality gates, and coverage                                |
+| [`LOCAL_BOOTSTRAP.md`](./LOCAL_BOOTSTRAP.md)                                         | Canonical local setup, service startup, validation, and E2E guidance                       |
+| [`docs/developer-onboarding/workflows.md`](./docs/developer-onboarding/workflows.md) | Day-to-day branch, validation, and release workflow                                        |
+| [`docs/COMMIT_MESSAGES.md`](./docs/COMMIT_MESSAGES.md)                               | Commit-message conventions for this repository                                             |
+
+### Standard Contributor Loop
+
+```bash
+npm run bootstrap
+source platform/venv/bin/activate
+npm run verify
+```
+
+The default verify path is intentionally practical for the current repo:
+
+- `lint`: root formatting plus scraper, frontend, and orchestrator lint
+- `typecheck`: frontend and orchestrator TypeScript checks, with Python typing debt tracked separately
+- `test`: deterministic Python tests and scraper test discovery
+- `security`: dependency integrity and high-signal secret scanning
+- `build`: Python compile checks, dashboard build, and orchestrator build
+
+### Orchestrator Commands
+
+Use the lightweight orchestrator when you want the machine state to mirror the planning docs:
+
+```bash
+npm run orchestrator:sync
+npm run orchestrator:status
+npm run orchestrator:coverage
+```
+
+These commands read `SPEC.md`, `TASKS.md`, `STATE.json`, and `ORCHESTRATOR_STATE.json` and report whether task coverage and progress tracking are still aligned.
+
+### Branch and Review Flow
+
+The workflow keeps the repository's existing promotion model explicit:
+
+- feature work lands through pull requests
+- shared branch flow is `develop -> staging -> main`
+- contributors should update planning and bootstrap docs when setup, validation, or runtime behavior changes
+
+For the full local workflow, service startup commands, and optional end-to-end setup, use [`LOCAL_BOOTSTRAP.md`](./LOCAL_BOOTSTRAP.md).
 
 ## Dashboard
 
@@ -355,6 +428,11 @@ Cloud deployment assumes GCP services such as Firestore, Pub/Sub, Cloud Storage,
 
 Core documentation:
 
+- Repo workflow bootstrap: [`LOCAL_BOOTSTRAP.md`](./LOCAL_BOOTSTRAP.md)
+- AI-assisted planning and execution: [`SPEC.md`](./SPEC.md), [`AGENTS.md`](./AGENTS.md), [`TASKS.md`](./TASKS.md)
+- Machine state and orchestrator runtime: [`STATE.json`](./STATE.json), [`ORCHESTRATOR_STATE.json`](./ORCHESTRATOR_STATE.json)
+- Contributor workflow and branch model: [`docs/developer-onboarding/workflows.md`](./docs/developer-onboarding/workflows.md)
+- Commit message guide: [`docs/COMMIT_MESSAGES.md`](./docs/COMMIT_MESSAGES.md)
 - Local validation and service bring-up: [`platform/LOCAL_VALIDATION.md`](./platform/LOCAL_VALIDATION.md)
 - Manual testing walkthrough: [`platform/MANUAL_TESTING.md`](./platform/MANUAL_TESTING.md)
 - Local runtime data guidance: [`platform/data/README.md`](./platform/data/README.md)
@@ -377,7 +455,6 @@ Contribution and governance:
 - Code of conduct: [`CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md)
 - Security policy: [`SECURITY.md`](./SECURITY.md)
 - License: [`LICENSE`](./LICENSE)
-
 
 ## Contributing
 

@@ -2,28 +2,28 @@
  * ScraperGrid - Multi-scraper grid view for monitoring multiple streams
  */
 
-import { useState } from 'react'
-import { Monitor, X, Maximize2 } from 'lucide-react'
-import { ScraperViewer } from './ScraperViewer'
-import { useActiveScrapers } from '@/hooks/useScraperStream'
-import { cn } from '@/lib/utils'
+import { useState } from 'react';
+import { Monitor, X } from 'lucide-react';
+import { ScraperViewer } from './ScraperViewer';
+import { useActiveScrapers } from '@/hooks/useScraperStream';
+import { cn } from '@/lib/utils';
 
 interface ScraperGridProps {
-  className?: string
-  maxColumns?: number
+  className?: string;
+  maxColumns?: number;
 }
 
 export function ScraperGrid({ className, maxColumns = 2 }: ScraperGridProps) {
-  const { sessions, loading, error } = useActiveScrapers(3000) // Poll every 3s
-  const [expandedSession, setExpandedSession] = useState<string | null>(null)
+  const { sessions, loading, error } = useActiveScrapers(3000); // Poll every 3s
+  const [expandedSession, setExpandedSession] = useState<string | null>(null);
 
   // Grid column classes based on session count and max columns
   const getGridClass = (count: number) => {
-    if (count === 1) return 'grid-cols-1'
-    if (count === 2) return maxColumns >= 2 ? 'grid-cols-2' : 'grid-cols-1'
-    if (count === 3) return maxColumns >= 3 ? 'grid-cols-3' : 'grid-cols-2'
-    return maxColumns >= 2 ? 'grid-cols-2' : 'grid-cols-1'
-  }
+    if (count === 1) return 'grid-cols-1';
+    if (count === 2) return maxColumns >= 2 ? 'grid-cols-2' : 'grid-cols-1';
+    if (count === 3) return maxColumns >= 3 ? 'grid-cols-3' : 'grid-cols-2';
+    return maxColumns >= 2 ? 'grid-cols-2' : 'grid-cols-1';
+  };
 
   if (loading) {
     return (
@@ -33,7 +33,7 @@ export function ScraperGrid({ className, maxColumns = 2 }: ScraperGridProps) {
           <p>Loading active scrapers...</p>
         </div>
       </div>
-    )
+    );
   }
 
   if (error) {
@@ -45,7 +45,7 @@ export function ScraperGrid({ className, maxColumns = 2 }: ScraperGridProps) {
           <p className="text-xs text-surface-500 mt-1">{error}</p>
         </div>
       </div>
-    )
+    );
   }
 
   if (sessions.length === 0) {
@@ -54,12 +54,10 @@ export function ScraperGrid({ className, maxColumns = 2 }: ScraperGridProps) {
         <div className="text-center text-surface-500">
           <Monitor className="w-12 h-12 mx-auto mb-3 opacity-50" />
           <p className="text-lg font-medium mb-1">No Active Scrapers</p>
-          <p className="text-sm">
-            Start a scraping job to see the live browser view here.
-          </p>
+          <p className="text-sm">Start a scraping job to see the live browser view here.</p>
         </div>
       </div>
-    )
+    );
   }
 
   // Expanded view - single scraper fullscreen
@@ -79,7 +77,7 @@ export function ScraperGrid({ className, maxColumns = 2 }: ScraperGridProps) {
           onExpand={() => setExpandedSession(null)}
         />
       </div>
-    )
+    );
   }
 
   // Grid view - multiple scrapers
@@ -107,17 +105,17 @@ export function ScraperGrid({ className, maxColumns = 2 }: ScraperGridProps) {
         ))}
       </div>
     </div>
-  )
+  );
 }
 
 /**
  * Compact scraper grid for embedding in other pages
  */
 export function ScraperGridCompact({ className }: { className?: string }) {
-  const { sessions } = useActiveScrapers(5000)
+  const { sessions } = useActiveScrapers(5000);
 
   if (sessions.length === 0) {
-    return null
+    return null;
   }
 
   return (
@@ -142,7 +140,7 @@ export function ScraperGridCompact({ className }: { className?: string }) {
         </p>
       )}
     </div>
-  )
+  );
 }
 
-export default ScraperGrid
+export default ScraperGrid;

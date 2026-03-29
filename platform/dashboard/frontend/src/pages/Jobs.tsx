@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect } from 'react';
 import {
   RefreshCw,
   XCircle,
@@ -9,17 +9,15 @@ import {
   Film,
   X,
   FileText,
-  Play,
-  Trash2,
-  Copy,
-} from 'lucide-react'
-import { Card, CardContent } from '@/components/ui/Card'
-import { Button } from '@/components/ui/Button'
-import { Select } from '@/components/ui/Select'
-import { SearchInput } from '@/components/ui/Input'
-import { StatusBadge } from '@/components/ui/Badge'
-import { EmptyState } from '@/components/ui/EmptyState'
-import { JobReplayPlayer } from '@/components/JobReplayPlayer'
+  Copy
+} from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { Select } from '@/components/ui/Select';
+import { SearchInput } from '@/components/ui/Input';
+import { StatusBadge } from '@/components/ui/Badge';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { JobReplayPlayer } from '@/components/JobReplayPlayer';
 import {
   Table,
   TableHead,
@@ -27,13 +25,13 @@ import {
   TableRow,
   TableHeader,
   TableCell,
-  TableLoading,
-} from '@/components/ui/Table'
-import { useJobs, useJobStats, useControlJobs, useRetryAllFailedJobs } from '@/lib/useDataHooks'
-import { useJobsWithScreenshots } from '@/hooks/useJobScreenshots'
-import { useIsTemplateMode } from '@/lib/useTemplateMode'
-import { useNavigate } from 'react-router-dom'
-import { formatRelativeTime, formatSourceName, cn } from '@/lib/utils'
+  TableLoading
+} from '@/components/ui/Table';
+import { useJobs, useJobStats, useControlJobs, useRetryAllFailedJobs } from '@/lib/useDataHooks';
+import { useJobsWithScreenshots } from '@/hooks/useJobScreenshots';
+import { useIsTemplateMode } from '@/lib/useTemplateMode';
+import { useNavigate } from 'react-router-dom';
+import { formatRelativeTime, formatSourceName, cn } from '@/lib/utils';
 
 const statusOptions = [
   { value: '', label: 'All Statuses' },
@@ -42,104 +40,101 @@ const statusOptions = [
   { value: 'completed', label: 'Completed' },
   { value: 'failed', label: 'Failed' },
   { value: 'retrying', label: 'Retrying' },
-  { value: 'cancelled', label: 'Cancelled' },
-]
+  { value: 'cancelled', label: 'Cancelled' }
+];
 
 const typeOptions = [
   { value: '', label: 'All Types' },
   { value: 'scrape', label: 'Scrape' },
   { value: 'extract_features', label: 'Extract Features' },
   { value: 'generate_prompt', label: 'Generate Prompt' },
-  { value: 'classify_industry', label: 'Classify Industry' },
-]
+  { value: 'classify_industry', label: 'Classify Industry' }
+];
 
 export default function Jobs() {
-  const isTemplate = useIsTemplateMode()
-  const navigate = useNavigate()
-  const [page, setPage] = useState(1)
-  const [selectedJobs, setSelectedJobs] = useState<string[]>([])
-  const [replayJobId, setReplayJobId] = useState<string | null>(null)
-  const [actionMenuJobId, setActionMenuJobId] = useState<string | null>(null)
-  const actionMenuRef = useRef<HTMLDivElement>(null)
+  const isTemplate = useIsTemplateMode();
+  const navigate = useNavigate();
+  const [page, setPage] = useState(1);
+  const [selectedJobs, setSelectedJobs] = useState<string[]>([]);
+  const [replayJobId, setReplayJobId] = useState<string | null>(null);
+  const [actionMenuJobId, setActionMenuJobId] = useState<string | null>(null);
+  const actionMenuRef = useRef<HTMLDivElement>(null);
   const [filters, setFilters] = useState({
     status: '',
     job_type: '',
-    source: '',
-  })
+    source: ''
+  });
 
   // Close action menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (actionMenuRef.current && !actionMenuRef.current.contains(event.target as Node)) {
-        setActionMenuJobId(null)
+        setActionMenuJobId(null);
       }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Fetch jobs that have screenshots for replay
-  const { data: jobsWithScreenshots } = useJobsWithScreenshots()
-  const hasScreenshots = (jobId: string) => 
-    jobsWithScreenshots?.jobs.includes(jobId) ?? false
+  const { data: jobsWithScreenshots } = useJobsWithScreenshots();
+  const hasScreenshots = (jobId: string) => jobsWithScreenshots?.jobs.includes(jobId) ?? false;
 
   const { data: jobs, isLoading } = useJobs({
     page,
     page_size: 15,
     status: filters.status || undefined,
     job_type: filters.job_type || undefined,
-    source: filters.source || undefined,
-  })
+    source: filters.source || undefined
+  });
 
-  const { data: stats } = useJobStats()
+  const { data: stats } = useJobStats();
 
-  const controlMutation = useControlJobs()
-  const retryAllMutation = useRetryAllFailedJobs()
+  const controlMutation = useControlJobs();
+  const retryAllMutation = useRetryAllFailedJobs();
 
   const handleSelectAll = () => {
     if (selectedJobs.length === jobs?.jobs.length) {
-      setSelectedJobs([])
+      setSelectedJobs([]);
     } else {
-      setSelectedJobs(jobs?.jobs.map((j) => j.id) || [])
+      setSelectedJobs(jobs?.jobs.map((j) => j.id) || []);
     }
-  }
+  };
 
   const handleSelectJob = (jobId: string) => {
     setSelectedJobs((prev) =>
-      prev.includes(jobId)
-        ? prev.filter((id) => id !== jobId)
-        : [...prev, jobId]
-    )
-  }
+      prev.includes(jobId) ? prev.filter((id) => id !== jobId) : [...prev, jobId]
+    );
+  };
 
   const handleControl = (action: string) => {
     if (selectedJobs.length > 0) {
-      controlMutation.mutate({ action, jobIds: selectedJobs })
-      setSelectedJobs([])
+      controlMutation.mutate({ action, jobIds: selectedJobs });
+      setSelectedJobs([]);
     }
-  }
+  };
 
   const handleJobAction = (action: string, jobId: string) => {
-    setActionMenuJobId(null)
+    setActionMenuJobId(null);
     switch (action) {
       case 'retry':
-        controlMutation.mutate({ action: 'retry', jobIds: [jobId] })
-        break
+        controlMutation.mutate({ action: 'retry', jobIds: [jobId] });
+        break;
       case 'cancel':
-        controlMutation.mutate({ action: 'cancel', jobIds: [jobId] })
-        break
+        controlMutation.mutate({ action: 'cancel', jobIds: [jobId] });
+        break;
       case 'replay':
-        setReplayJobId(jobId)
-        break
+        setReplayJobId(jobId);
+        break;
       case 'logs':
         // Navigate to logs filtered by this job
-        navigate(`/logs?job_id=${jobId}`)
-        break
+        navigate(`/logs?job_id=${jobId}`);
+        break;
       case 'copy':
-        navigator.clipboard.writeText(jobId)
-        break
+        navigator.clipboard.writeText(jobId);
+        break;
     }
-  }
+  };
 
   return (
     <div className="space-y-6">
@@ -148,7 +143,9 @@ export default function Jobs() {
         <div>
           <h1 className="text-2xl font-bold text-white">Job Queue</h1>
           <p className="text-surface-400 mt-1">
-            {isTemplate ? 'Preview job management with sample data' : 'Manage and monitor pipeline jobs'}
+            {isTemplate
+              ? 'Preview job management with sample data'
+              : 'Manage and monitor pipeline jobs'}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -172,13 +169,11 @@ export default function Jobs() {
           { label: 'Completed', value: stats?.completed || 0, color: 'text-green-500' },
           { label: 'Failed', value: stats?.failed || 0, color: 'text-red-500' },
           { label: 'Retrying', value: stats?.retrying || 0, color: 'text-orange-500' },
-          { label: 'Cancelled', value: stats?.cancelled || 0, color: 'text-gray-500' },
+          { label: 'Cancelled', value: stats?.cancelled || 0, color: 'text-gray-500' }
         ].map((stat) => (
           <div key={stat.label} className="card p-4">
             <p className="text-xs text-surface-400">{stat.label}</p>
-            <p className={cn('text-2xl font-bold mt-1', stat.color)}>
-              {stat.value}
-            </p>
+            <p className={cn('text-2xl font-bold mt-1', stat.color)}>{stat.value}</p>
           </div>
         ))}
       </div>
@@ -200,17 +195,12 @@ export default function Jobs() {
                 onChange={(e) => setFilters({ ...filters, job_type: e.target.value })}
                 placeholder="Filter by type"
               />
-              <SearchInput
-                placeholder="Search jobs..."
-                className="w-full"
-              />
+              <SearchInput placeholder="Search jobs..." className="w-full" />
             </div>
-            
+
             {selectedJobs.length > 0 && (
               <div className="flex items-center gap-2">
-                <span className="text-sm text-surface-400">
-                  {selectedJobs.length} selected
-                </span>
+                <span className="text-sm text-surface-400">{selectedJobs.length} selected</span>
                 <Button
                   size="sm"
                   variant="secondary"
@@ -265,11 +255,11 @@ export default function Jobs() {
                 <td colSpan={8} className="py-12">
                   <EmptyState
                     icon={ListTodo}
-                    title={filters.status || filters.job_type ? "No matching jobs" : "No jobs yet"}
+                    title={filters.status || filters.job_type ? 'No matching jobs' : 'No jobs yet'}
                     description={
                       filters.status || filters.job_type
-                        ? "Try adjusting your filters to find jobs"
-                        : "Jobs will appear here when you start scraping assets or processing data"
+                        ? 'Try adjusting your filters to find jobs'
+                        : 'Jobs will appear here when you start scraping assets or processing data'
                     }
                     size="sm"
                   />
@@ -277,10 +267,7 @@ export default function Jobs() {
               </tr>
             ) : (
               jobs?.jobs.map((job) => (
-                <TableRow
-                  key={job.id}
-                  selected={selectedJobs.includes(job.id)}
-                >
+                <TableRow key={job.id} selected={selectedJobs.includes(job.id)}>
                   <TableCell>
                     <input
                       type="checkbox"
@@ -295,19 +282,13 @@ export default function Jobs() {
                     </span>
                   </TableCell>
                   <TableCell>
-                    <span className="capitalize">
-                      {job.job_type.replace(/_/g, ' ')}
-                    </span>
+                    <span className="capitalize">{job.job_type.replace(/_/g, ' ')}</span>
                   </TableCell>
-                  <TableCell>
-                    {job.source ? formatSourceName(job.source) : '-'}
-                  </TableCell>
+                  <TableCell>{job.source ? formatSourceName(job.source) : '-'}</TableCell>
                   <TableCell>
                     <StatusBadge status={job.status} />
                   </TableCell>
-                  <TableCell>
-                    {job.assets_processed > 0 ? job.assets_processed : '-'}
-                  </TableCell>
+                  <TableCell>{job.assets_processed > 0 ? job.assets_processed : '-'}</TableCell>
                   <TableCell className="text-surface-400">
                     {formatRelativeTime(job.created_at)}
                   </TableCell>
@@ -322,16 +303,18 @@ export default function Jobs() {
                           <Film className="w-4 h-4" />
                         </button>
                       )}
-                      <button 
-                        onClick={() => setActionMenuJobId(actionMenuJobId === job.id ? null : job.id)}
+                      <button
+                        onClick={() =>
+                          setActionMenuJobId(actionMenuJobId === job.id ? null : job.id)
+                        }
                         className="p-1 text-surface-400 hover:text-white transition-colors"
                       >
                         <MoreVertical className="w-4 h-4" />
                       </button>
-                      
+
                       {/* Action Dropdown Menu */}
                       {actionMenuJobId === job.id && (
-                        <div 
+                        <div
                           ref={actionMenuRef}
                           className="absolute right-0 top-8 z-50 w-40 py-1 bg-surface-800 border border-surface-700 rounded-lg shadow-xl"
                         >
@@ -425,13 +408,10 @@ export default function Jobs() {
             >
               <X className="w-6 h-6" />
             </button>
-            <JobReplayPlayer 
-              jobId={replayJobId} 
-              onClose={() => setReplayJobId(null)}
-            />
+            <JobReplayPlayer jobId={replayJobId} onClose={() => setReplayJobId(null)} />
           </div>
         </div>
       )}
     </div>
-  )
+  );
 }
